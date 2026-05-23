@@ -625,33 +625,6 @@ function catInfo(name, type) {
   return list.find(c => c.name === name) || { icon: '❓', color: '#999' };
 }
 
-// ── Billing cycle for personal (25th-25th) ──
-function getBillingCycle() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth(); // 0-based
-  const d = now.getDate();
-
-  let start, end;
-  if (d >= 25) {
-    start = new Date(y, m, 25);
-    end = new Date(y, m + 1, 25);
-  } else {
-    start = new Date(y, m - 1, 25);
-    end = new Date(y, m, 25);
-  }
-  return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10),
-    nextAuto: end.toISOString().slice(0, 10),
-  };
-}
-
-function formatDateCN(d) {
-  const t = new Date(d + 'T00:00:00');
-  return `${t.getMonth()+1}月${t.getDate()}日`;
-}
-
 // ── Render Transaction Item ──
 function renderTxItem(r) {
   const c = catInfo(r.category, r.type);
@@ -812,80 +785,106 @@ function renderHistory(filter) {
 // ── Statistics Page ──
 function renderStats() {
   const container = document.getElementById('statsContent');
-
-  if (currentAccount === 'personal') {
-    renderPersonalStats(container);
-  } else {
-    renderWorkStats(container);
-  }
-}
-
-function renderPersonalStats(container) {
-  const cycle = getBillingCycle();
-  const periodRecords = records.filter(r =>
-    r.accountType === 'personal' && r.date >= cycle.start && r.date < cycle.end
-  );
-  const expenses = periodRecords.filter(r => r.type === 'expense');
-  const incomes = periodRecords.filter(r => r.type === 'income');
-  const totalExpense = expenses.reduce((s,r) => s + r.amount, 0);
-  const totalIncome = incomes.reduce((s,r) => s + r.amount, 0);
-
-  const today = getLocalDateStr();
-  const isSummaryDay = today === cycle.end;
-  const daysLeft = Math.ceil((new Date(cycle.end + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000);
-
-  let bannerHtml;
-  if (isSummaryDay) {
-    bannerHtml = `<div class="billing-banner personal">
-      <span>📊 今天是汇总日！以下为<strong>本期</strong>统计</span>
-      <span class="billing-date">${formatDateCN(cycle.start)} → ${formatDateCN(cycle.end)}</span>
-    </div>`;
-  } else {
-    bannerHtml = `<div class="billing-banner personal">
-      <span>📅 当前账期 · 距汇总还有 <strong>${daysLeft}</strong> 天</span>
-      <span class="billing-date">${formatDateCN(cycle.start)} → ${formatDateCN(cycle.end)}</span>
-    </div>`;
-  }
-
-  container.innerHTML = bannerHtml + buildStatsBody(totalExpense, totalIncome, periodRecords.length, expenses, 'expense');
-}
-
-function renderWorkStats(container) {
   const today = getLocalDateStr();
   const firstOfMonth = today.slice(0, 7) + '-01';
+  const isPersonal = currentAccount === 'personal';
+  const icon = isPersonal ? '👤' : '💼';
+  const label = isPersonal ? '个人' : '工作';
+  const bannerCls = isPersonal ? 'personal' : 'work';
 
   container.innerHTML = `
-    <div class="billing-banner work">
-      <span>💼 工作账户 · 手动统计</span>
+    <div class="billing-banner ${bannerCls}">
+      <span>${icon} ${label}账户 · 手动统计</span>
       <span class="billing-date">选择日期范围后生成</span>
     </div>
     <div class="date-range-row">
-      <input type="date" id="workDateStart" value="${firstOfMonth}">
+      <input type="date" id="statsDateStart" value="${firstOfMonth}">
       <span class="sep">至</span>
-      <input type="date" id="workDateEnd" value="${today}">
-      <button class="gen-btn" onclick="generateWorkStats()">生成报表</button>
+      <input type="date" id="statsDateEnd" value="${today}">
+      <button class="gen-btn" onclick="generateStats()">生成报表</button>
     </div>
-    <div id="workStatsResult">
+    <div id="statsResult">
       <div class="stat-empty">选择日期范围后点击"生成报表"</div>
     </div>
   `;
 }
 
-function generateWorkStats() {
-  const start = document.getElementById('workDateStart').value;
-  const end = document.getElementById('workDateEnd').value;
+function generateStats() {
+  const start = document.getElementById('statsDateStart').value;
+  const end = document.getElementById('statsDateEnd').value;
   if (!start || !end) { showToast('请选择日期范围'); return; }
   if (start > end) { showToast('开始日期不能晚于结束日期'); return; }
 
   const periodRecords = records.filter(r =>
-    r.accountType === 'work' && r.date >= start && r.date <= end
+    r.accountType === currentAccount && r.date >= start && r.date <= end
   );
   const expenses = periodRecords.filter(r => r.type === 'expense');
   const incomes = periodRecords.filter(r => r.type === 'income');
   const totalExpense = expenses.reduce((s,r) => s + r.amount, 0);
   const totalIncome = incomes.reduce((s,r) => s + r.amount, 0);
 
-  document.getElementById('workStatsResult').innerHTML = buildStatsBody(totalExpense, totalIncome, periodRecords.length, expenses, 'expense');
+  const isPersonal = currentAccount === 'personal';
+  const label = isPersonal ? '个人' : '工作';
+
+  let html = buildStatsBody(totalExpense, totalIncome, periodRecords.length, expenses, 'expense');
+
+  if (periodRecords.length > 0) {
+    html += `
+      <div style="padding:0 16px 16px;">
+        <button class="quick-btn income" style="width:100%;background:var(--primary);" onclick="exportStatsResult('${start}', '${end}')">
+          📤 导出${label}汇总报表
+        </button>
+      </div>`;
+  }
+
+  document.getElementById('statsResult').innerHTML = html;
+}
+
+async function exportStatsResult(start, end) {
+  const periodRecords = records.filter(r =>
+    r.accountType === currentAccount && r.date >= start && r.date <= end
+  );
+  if (periodRecords.length === 0) { showToast('没有数据可导出'); return; }
+
+  const isPersonal = currentAccount === 'personal';
+  const label = isPersonal ? '个人' : '工作';
+  const filename = `${label}汇总_${start}_${end}.csv`;
+
+  // Build summary + detail CSV
+  const expenses = periodRecords.filter(r => r.type === 'expense');
+  const incomes = periodRecords.filter(r => r.type === 'income');
+  const totalExpense = expenses.reduce((s,r) => s + r.amount, 0);
+  const totalIncome = incomes.reduce((s,r) => s + r.amount, 0);
+
+  let csv = '﻿';
+  csv += `${label}账户汇总报表\n`;
+  csv += `日期范围,${start} 至 ${end}\n`;
+  csv += `总收入,${totalIncome.toFixed(2)}\n`;
+  csv += `总支出,${totalExpense.toFixed(2)}\n`;
+  csv += `结余,${(totalIncome - totalExpense).toFixed(2)}\n`;
+  csv += `总笔数,${periodRecords.length}\n\n`;
+  csv += '日期,类型,分类,金额,备注\n';
+  periodRecords.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(r => {
+    csv += `${r.date},${r.type==='expense'?'支出':'收入'},${r.category},${r.amount},${r.note||''}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+  if (navigator.share && navigator.canShare) {
+    const file = new File([blob], filename, { type: 'text/csv' });
+    const data = { files: [file], title: filename };
+    if (navigator.canShare(data)) {
+      try { await navigator.share(data); showToast('分享成功'); return; }
+      catch (e) { if (e.name === 'AbortError') return; }
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('已下载 ' + filename);
 }
 
 function buildStatsBody(totalExpense, totalIncome, count, expenses, catType) {
