@@ -478,7 +478,7 @@ body {
 .detail-cat-pct { font-size: 11px; color: var(--text-secondary); min-width: 36px; text-align: right; }
 .detail-close-btn { width: 100%; padding: 14px; background: var(--bg); border: none; border-radius: 12px; font-size: 15px; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
 .detail-close-btn:active { opacity: 0.7; }
-.swipe-container{position:relative;overflow:hidden;margin:0 16px 8px;border-radius:12px;background:#F56C6C}.swipe-content{position:relative;z-index:1;background:var(--card);transition:transform .2s ease;border-radius:12px}.swipe-content.swiped{transform:translateX(-72px)}.swipe-delete{position:absolute;right:0;top:0;bottom:0;width:72px;background:#F56C6C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;border-radius:0 12px 12px 0;cursor:pointer;z-index:0}
+.swipe-container{position:relative;overflow:hidden;margin:0 16px 8px;border-radius:12px;background:var(--card)}.swipe-content{position:relative;z-index:1;background:var(--card);transition:transform .2s ease;border-radius:12px}.swipe-content.swiped{transform:translateX(-72px)}.swipe-delete{position:absolute;right:0;top:0;bottom:0;width:72px;background:#F56C6C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;border-radius:0 12px 12px 0;cursor:pointer;z-index:0}
 </style>
 </head>
 <body>
@@ -842,7 +842,8 @@ function renderHistory(filter) {
     }
     html += renderTxItem(r);
   });
-  container.innerHTML = html;
+  container.innerHTML = html;  initSwipeItems();
+
 }
 
 // ── Statistics Page ──
