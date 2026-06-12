@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -553,7 +553,9 @@ body {
       <div class="settings-item" onclick="exportAccount('all')">
         <div class="left"><span class="icon">📊</span><div>导出全部账单<span class="info">包含个人和工作的所有记录</span></div></div>
         <div class="right">›</div>
-    <!-- backup removed --><div class="settings-group">
+      </div>
+    </div>
+    <div class="settings-group">
       <div class="settings-item danger" onclick="clearAccountData()">
         <div class="left"><span class="icon">🗑</span>清除当前账户数据</div>
         <div class="right">›</div>
@@ -728,12 +730,6 @@ function renderAll() {
   renderHome();
   renderHistory();
   renderStats();
-  // Settings counts
-  const personalRecords = records.filter(r => r.accountType === 'personal');
-  const workRecords = records.filter(r => r.accountType === 'work');
-  document.getElementById('personalCount').textContent = personalRecords.length + ' 条';
-  document.getElementById('workCount').textContent = workRecords.length + ' 条';
-  document.getElementById('totalRecords').textContent = records.length + ' 条';
   // Quick action labels
   const label = currentAccount === 'personal' ? '个人' : '工作';
   document.getElementById('expenseAcctLabel').textContent = '· ' + label;
