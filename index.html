@@ -480,7 +480,7 @@ body {
 .detail-close-btn:active { opacity: 0.7; }
 .swipe-container{position:relative;overflow:hidden;margin:0 16px 8px;border-radius:12px;background:var(--card)}.swipe-content{position:relative;z-index:1;background:var(--card);transition:transform .2s ease;border-radius:12px}.swipe-content.swiped{transform:translateX(-72px)}.swipe-delete{position:absolute;right:0;top:0;bottom:0;width:72px;background:#F56C6C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;border-radius:0 12px 12px 0;cursor:pointer;z-index:0}
 .swipe-container .tx-item{margin:0!important}
-</style>
+/* Month nav */.month-nav{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}.month-nav button{background:none;border:none;font-size:20px;padding:4px 12px;cursor:pointer;color:var(--primary);border-radius:8px}.month-nav button:active{background:var(--bg)}.month-nav .month-label{font-size:15px;font-weight:600}/* Search */.search-bar{padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}.search-bar input{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;background:var(--bg)}/* Backup */.backup-group{margin:16px;background:var(--card);border-radius:16px;overflow:hidden}.backup-item{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);cursor:pointer}.backup-item:last-child{border-bottom:none}.backup-item:active{background:#f9f9f9}.backup-item .left{display:flex;align-items:center;gap:12px}.backup-item .left .icon{font-size:20px}.backup-item .left .info{font-size:12px;color:var(--text-secondary);margin-top:2px}.backup-item .right{color:var(--text-light);font-size:14px}/* Edit */.detail-edit-btn{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:12px}.detail-edit-btn:active{opacity:.85}</style>
 </head>
 <body>
 <div id="app">
@@ -512,7 +512,16 @@ body {
 
   <!-- 明细 -->
   <div class="page" id="page-history">
-    <div class="filter-bar" id="filterBar">
+    
+    <div class="month-nav" id="monthNav">
+      <button onclick="prevMonth()">‹</button>
+      <span class="month-label" id="monthLabel"></span>
+      <button onclick="nextMonth()">›</button>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="搜索备注、分类、金额..." oninput="onSearch()">
+    </div>
+<div class="filter-bar" id="filterBar">
       <button class="filter-chip active" data-filter="all">全部</button>
       <button class="filter-chip" data-filter="expense">支出</button>
       <button class="filter-chip" data-filter="income">收入</button>
@@ -544,6 +553,18 @@ body {
       <div class="settings-item" onclick="exportAccount('all')">
         <div class="left"><span class="icon">📊</span><div>导出全部账单<span class="info">包含个人和工作的所有记录</span></div></div>
         <div class="right">›</div>
+    <div class="backup-group">
+      <div class="backup-item" onclick="exportBackup()">
+        <div class="left"><span class="icon">💾</span><div>导出备份<span class="info">JSON · 含所有记录</span></div></div>
+        <div class="right">›</div>
+      </div>
+      <div class="backup-item" onclick="document.getElementById('importInput').click()">
+        <div class="left"><span class="icon">📂</span><div>导入备份<span class="info">恢复之前导出的备份</span></div></div>
+        <div class="right">›</div>
+      </div>
+      <input type="file" id="importInput" accept=".json" style="display:none" onchange="importBackup(event)">
+    </div>
+    <div class="settings-group"></div>
       </div>
     </div>
     <div class="settings-group">
@@ -1295,6 +1316,132 @@ document.addEventListener('touchend',function(e){
 document.addEventListener('click',function(e){
   if(!e.target.closest('.swipe-container'))document.querySelectorAll('.swipe-content.swiped').forEach(function(el){el.classList.remove('swiped');});
 });
+
+
+var editingId = null;
+
+function openModalForEdit(id) {
+  var r = records.find(function(rec) { return rec.id === id; });
+  if (!r) return;
+  editingId = id;
+  closeDetailModal();
+  openModal(r.type);
+  document.getElementById('amountInput').value = r.amount;
+  document.getElementById('noteInput').value = r.note || '';
+  document.getElementById('dateInput').value = r.date;
+  selectedCategory = r.category;
+  renderCategoryGrid();
+}
+
+var origSave = saveRecord;
+saveRecord = function() {
+  var amt = parseFloat(document.getElementById('amountInput').value);
+  if (!amt || amt <= 0) { showToast('请输入金额'); return; }
+  var note = document.getElementById('noteInput').value.trim();
+  var date = document.getElementById('dateInput').value || getLocalDateStr();
+  if (editingId) {
+    for (var i = 0; i < records.length; i++) {
+      if (records[i].id === editingId) {
+        records[i].type = modalType; records[i].category = selectedCategory;
+        records[i].amount = Math.round(amt * 100) / 100; records[i].note = note; records[i].date = date;
+        break;
+      }
+    }
+    editingId = null;
+  } else {
+    records.push({ id: Date.now(), type: modalType, category: selectedCategory, amount: Math.round(amt * 100) / 100, note: note, date: date, accountType: currentAccount });
+  }
+  save(); closeModal(); renderAll();
+  showToast((currentAccount === 'personal' ? '个人' : '工作') + ' · ' + (modalType === 'expense' ? '已保存' : '已保存'));
+};
+
+var origShowDetail = showRecordDetail;
+showRecordDetail = function(id) {
+  var r = records.find(function(rec) { return rec.id === id; });
+  if (!r) return;
+  origShowDetail(id);
+  var dc = document.getElementById('detailContent');
+  var eb = document.createElement('button');
+  eb.className = 'detail-edit-btn';
+  eb.textContent = '✏ 编辑';
+  eb.onclick = function() { openModalForEdit(id); };
+  dc.insertBefore(eb, dc.firstChild);
+};
+
+function exportBackup() {
+  var d = { version: 1, records: records, exportDate: new Date().toISOString() };
+  var b = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+  var fn = '记账备份_' + getLocalDateStr() + '.json';
+  if (navigator.share && navigator.canShare) {
+    var f = new File([b], fn, { type: 'application/json' });
+    var sd = { files: [f], title: fn };
+    if (navigator.canShare(sd)) { try { navigator.share(sd); return; } catch(e) { if (e.name === 'AbortError') return; } }
+  }
+  var u = URL.createObjectURL(b); var a = document.createElement('a'); a.href = u; a.download = fn;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u);
+}
+
+function importBackup(ev) {
+  var f = ev.target.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(e) {
+    try {
+      var d = JSON.parse(e.target.result);
+      if (!d.records || !Array.isArray(d.records)) { showToast('无效备份'); return; }
+      if (!confirm('导入备份将替换当前数据，确定？')) return;
+      records = d.records; save(); renderAll();
+      showToast('已导入' + records.length + '条记录');
+    } catch(err) { showToast('备份文件格式错误'); }
+  };
+  r.readAsText(f); ev.target.value = '';
+}
+
+var currentSearch = '';
+function onSearch() {
+  var inp = document.getElementById('searchInput');
+  currentSearch = inp ? inp.value.trim().toLowerCase() : '';
+  renderHistory(currentFilter);
+}
+
+var currentMonth = new Date(); currentMonth.setDate(1);
+function prevMonth() { currentMonth.setMonth(currentMonth.getMonth() - 1); renderHistory(currentFilter); }
+function nextMonth() { currentMonth.setMonth(currentMonth.getMonth() + 1); renderHistory(currentFilter); }
+function updateMonthLabel() {
+  var el = document.getElementById('monthLabel');
+  if (el) el.textContent = currentMonth.getFullYear() + '年' + (currentMonth.getMonth() + 1) + '月';
+}
+
+var origRH = renderHistory;
+renderHistory = function(filter) {
+  var f = filter || currentFilter; updateMonthLabel();
+  var container = document.getElementById('historyList');
+  var filtered = acctRecords();
+  filtered = filtered.filter(function(r) {
+    var d = new Date(r.date);
+    return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
+  });
+  if (f && f !== 'all') {
+    if (f === 'expense' || f === 'income') filtered = filtered.filter(function(r) { return r.type === f; });
+    else filtered = filtered.filter(function(r) { return r.category === f; });
+  }
+  if (currentSearch) {
+    filtered = filtered.filter(function(r) {
+      return (r.note && r.note.toLowerCase().indexOf(currentSearch) >= 0) || r.category.toLowerCase().indexOf(currentSearch) >= 0 || r.amount.toString().indexOf(currentSearch) >= 0;
+    });
+  }
+  filtered.sort(function(a,b) { return new Date(a.date) - new Date(b.date) || a.id - b.id; });
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>无符合条件的记录</p></div>';
+    initSwipeItems(); return;
+  }
+  var html = '', lastMonth = '';
+  filtered.forEach(function(r) {
+    var m = r.date.slice(0, 7);
+    if (m !== lastMonth) { var p = m.split('-'); html += '<div class="month-header">' + parseInt(p[0]) + '年' + parseInt(p[1]) + '月</div>'; lastMonth = m; }
+    html += renderTxItem(r);
+  });
+  container.innerHTML = html; initSwipeItems();
+};
 
 // ── Init ──
 document.getElementById('dateInput').value = getLocalDateStr();
