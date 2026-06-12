@@ -428,6 +428,51 @@ body {
   transition: opacity 0.25s; pointer-events: none;
 }
 .toast.show { opacity: 1; }
+.tx-item { position: relative; }
+.tx-item .delete-btn {
+  position: absolute; right: 8px; top: 50%;
+  transform: translateY(-50%);
+  width: 32px; height: 32px;
+  border: none; border-radius: 50%;
+  background: transparent;
+  color: var(--text-light);
+  font-size: 16px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.tx-item:hover .delete-btn, .tx-item:active .delete-btn { display: flex; }
+.delete-btn:hover { background: #fee2e2; color: var(--danger); }
+
+.detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; justify-content: center; align-items: flex-end; }
+.detail-overlay.show { display: flex; }
+.detail-modal { width: 100%; max-width: 430px; background: #fff; border-radius: 20px 20px 0 0; padding: 8px 20px; padding-bottom: calc(20px + var(--safe-bottom)); animation: slideUp 0.25s ease; }
+.detail-handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 16px; }
+.detail-record { display: flex; align-items: center; padding: 16px; background: var(--bg); border-radius: 12px; margin-bottom: 16px; }
+.detail-record .dr-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; margin-right: 14px; flex-shrink: 0; }
+.detail-record .dr-info { flex: 1; }
+.detail-record .dr-cat { font-size: 16px; font-weight: 600; }
+.detail-record .dr-date { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.detail-record .dr-amount { font-size: 22px; font-weight: 700; }
+.detail-record .dr-amount.expense { color: var(--text); }
+.detail-record .dr-amount.income { color: var(--success); }
+.detail-stats-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+.detail-stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.detail-stat-card { background: var(--bg); border-radius: 10px; padding: 12px; text-align: center; }
+.detail-stat-card .ds-val { font-size: 18px; font-weight: 700; }
+.detail-stat-card .ds-val.expense { color: var(--text); }
+.detail-stat-card .ds-val.income { color: var(--success); }
+.detail-stat-card .ds-lbl { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+.detail-cat-list { margin-bottom: 16px; }
+.detail-cat-item { display: flex; align-items: center; padding: 10px 12px; background: var(--bg); border-radius: 8px; margin-bottom: 4px; gap: 10px; }
+.detail-cat-bar-bg { flex: 1; height: 6px; background: #ddd; border-radius: 3px; overflow: hidden; }
+.detail-cat-bar { height: 100%; border-radius: 3px; }
+.detail-cat-amt { font-size: 13px; font-weight: 600; min-width: 60px; text-align: right; }
+.detail-cat-pct { font-size: 11px; color: var(--text-secondary); min-width: 36px; text-align: right; }
+.detail-close-btn { width: 100%; padding: 14px; background: var(--bg); border: none; border-radius: 12px; font-size: 15px; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
+.detail-close-btn:active { opacity: 0.7; }
 </style>
 </head>
 <body>
@@ -558,6 +603,16 @@ body {
   </div>
 </div>
 
+
+<!-- Detail Modal -->
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetailModal(event)">
+  <div class="detail-modal" onclick="event.stopPropagation()">
+    <div class="detail-handle"></div>
+    <div id="detailContent"></div>
+    <button class="detail-close-btn" onclick="closeDetailModal()">关闭</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -634,7 +689,7 @@ function renderTxItem(r) {
     ? '<span class="tx-acct-tag work">工作</span>'
     : '';
   return `
-    <div class="tx-item" style="margin:0;">
+    <div class="tx-item" style="margin:0;cursor:pointer;" onclick="showRecordDetail(${r.id})">
       <div class="tx-icon" style="background:${c.color}20;">${c.icon}</div>
       <div class="tx-info">
         <div class="tx-category">${r.category}${acctTag}</div>
@@ -643,10 +698,10 @@ function renderTxItem(r) {
       <div class="tx-meta">
         <div class="tx-amount ${cls}">${sign}${formatMoney(r.amount)}</div>
       </div>
+      <button class="delete-btn" onclick="event.stopPropagation();deleteRecord(${r.id})">&times;</button>
     </div>
   `;
 }
-
 // ── Account Switch ──
 document.getElementById('accountSwitch').addEventListener('click', function(e) {
   if (e.target.tagName === 'BUTTON') {
@@ -734,7 +789,7 @@ function renderHome() {
         ? '<span class="tx-acct-tag work">工作</span>'
         : '';
       return `
-        <div class="tx-item">
+        <div class="tx-item" style="cursor:pointer;" onclick="showRecordDetail(${r.id})">
           <div class="tx-icon" style="background:${c.color}20;">${c.icon}</div>
           <div class="tx-info">
             <div class="tx-category">${r.category}${acctTag}</div>
@@ -743,6 +798,7 @@ function renderHome() {
           <div class="tx-meta">
             <div class="tx-amount ${cls}">${sign}${formatMoney(r.amount)}</div>
           </div>
+          <button class="delete-btn" onclick="event.stopPropagation();deleteRecord(${r.id})">&times;</button>
         </div>`;
     }).join('');
   }
@@ -841,52 +897,68 @@ function generateStats() {
 }
 
 async function exportStatsResult(start, end) {
-  const periodRecords = records.filter(r =>
-    r.accountType === currentAccount && r.date >= start && r.date <= end
-  );
+  const periodRecords = records.filter(r => r.accountType === currentAccount && r.date >= start && r.date <= end);
   if (periodRecords.length === 0) { showToast('没有数据可导出'); return; }
 
   const isPersonal = currentAccount === 'personal';
   const label = isPersonal ? '个人' : '工作';
-  const filename = `${label}汇总_${start}_${end}.csv`;
+  const filename = label + '账户报表_' + start + '_' + end + '.xls';
 
-  // Build summary + detail CSV
   const expenses = periodRecords.filter(r => r.type === 'expense');
   const incomes = periodRecords.filter(r => r.type === 'income');
   const totalExpense = expenses.reduce((s,r) => s + r.amount, 0);
   const totalIncome = incomes.reduce((s,r) => s + r.amount, 0);
+  const balance = totalIncome - totalExpense;
 
-  let csv = '﻿';
-  csv += `${label}账户汇总报表\n`;
-  csv += `日期范围,${start} 至 ${end}\n`;
-  csv += `总收入,${totalIncome.toFixed(2)}\n`;
-  csv += `总支出,${totalExpense.toFixed(2)}\n`;
-  csv += `结余,${(totalIncome - totalExpense).toFixed(2)}\n`;
-  csv += `总笔数,${periodRecords.length}\n\n`;
-  csv += '日期,类型,分类,金额,备注\n';
-  periodRecords.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(r => {
-    csv += `${r.date},${r.type==='expense'?'支出':'收入'},${r.category},${r.amount},${r.note||''}\n`;
+  const style = '<style>body{font-family:-apple-system,Helvetica Neue,sans-serif;margin:20px}h2{font-size:18px;margin-bottom:8px}h3{font-size:14px;margin:16px 0 8px;color:#666}table{border-collapse:collapse;width:100%;margin-bottom:12px}th{background:#4F6EF7;color:#fff;font-weight:600;font-size:13px;padding:8px 10px;text-align:left;border:1px solid #4F6EF7}td{padding:6px 10px;border:1px solid #d0d0d0;font-size:13px}tr:nth-child(even) td{background:#f8f9ff}.num{text-align:right;font-variant-numeric:tabular-nums}.total td{font-weight:700;border-top:2px solid #4F6EF7;background:#eef1ff}</style>';
+
+  let html = '<html><head><meta charset="UTF-8">' + style + '</head><body>';
+  html += '<h2>' + label + '账户财务报表</h2>';
+  html += '<table>';
+  html += '<tr><td>日期范围</td><td>' + start + ' 至 ' + end + '</td></tr>';
+  html += '<tr><td>总收入</td><td class="num">' + totalIncome.toFixed(2) + '</td></tr>';
+  html += '<tr><td>总支出</td><td class="num">' + totalExpense.toFixed(2) + '</td></tr>';
+  html += '<tr><td>结余</td><td class="num">' + balance.toFixed(2) + '</td></tr>';
+  html += '<tr><td>总笔数</td><td class="num">' + periodRecords.length + '</td></tr>';
+  html += '</table>';
+
+  const sorted = [...periodRecords].sort((a,b) => new Date(b.date) - new Date(a.date));
+  html += '<h3>明细列表</h3><table>';
+  html += '<tr><th>日期</th><th>类型</th><th>分类</th><th>金额</th><th>备注</th></tr>';
+  sorted.forEach(r => {
+    const typeName = r.type==='expense' ? '支出' : '收入';
+    html += '<tr><td>' + r.date + '</td><td>' + typeName + '</td><td>' + r.category + '</td><td class="num">' + r.amount.toFixed(2) + '</td><td>' + (r.note||'') + '</td></tr>';
   });
+  html += '</table>';
 
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-
-  if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: 'text/csv' });
-    const data = { files: [file], title: filename };
-    if (navigator.canShare(data)) {
-      try { await navigator.share(data); showToast('分享成功'); return; }
-      catch (e) { if (e.name === 'AbortError') return; }
-    }
+  const catMap = {};
+  expenses.forEach(r => { catMap[r.category] = (catMap[r.category] || 0) + r.amount; });
+  const catKeys = Object.keys(catMap);
+  if (catKeys.length > 0) {
+    html += '<h3>支出分类汇总</h3><table>';
+    html += '<tr><th>分类</th><th>金额</th><th>占比</th></tr>';
+    const sortedCat = Object.entries(catMap).sort((a,b) => b[1] - a[1]);
+    sortedCat.forEach(([cat, amt]) => {
+      const pct = totalExpense > 0 ? (amt / totalExpense * 100).toFixed(1) : 0;
+      html += '<tr><td>' + cat + '</td><td class="num">' + amt.toFixed(2) + '</td><td class="num">' + pct + '%</td></tr>';
+    });
+    html += '</table>';
   }
 
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
-  showToast('已下载 ' + filename);
-}
+  html += '<table><tr class="total"><td>合计</td><td class="num">收入:' + totalIncome.toFixed(2) + '</td><td class="num">支出:' + totalExpense.toFixed(2) + '</td><td class="num">结余:' + balance.toFixed(2) + '</td></tr></table>';
+  html += '</body></html>';
 
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  if (navigator.share && navigator.canShare) {
+    const file = new File([blob], filename, { type: 'application/vnd.ms-excel' });
+    const data = { files: [file], title: filename };
+    if (navigator.canShare(data)) { try { await navigator.share(data); showToast('分享成功'); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('已下载' + filename);
+}
 function buildStatsBody(totalExpense, totalIncome, count, expenses, catType) {
   let html = `
     <div class="stats-header">
@@ -1038,57 +1110,133 @@ document.getElementById('filterBar').addEventListener('click', function(e) {
   }
 });
 
+
+// ── Delete Record ──
+function deleteRecord(id) {
+  if (confirm('确定要删除这条记录吗?')) {
+    records = records.filter(r => r.id !== id);
+    save();
+    renderAll();
+    showToast('记录已删除');
+  }
+}
+
+// ── Record Detail Modal ──
+function showRecordDetail(id) {
+  const r = records.find(rec => rec.id === id);
+  if (!r) return;
+  const c = catInfo(r.category, r.type);
+  const cls = r.type === 'income' ? 'income' : 'expense';
+  const sign = r.type === 'income' ? '+' : '-';
+  const label = r.accountType === 'personal' ? '个人' : '工作';
+  const acctCls = r.accountType === 'personal' ? 'personal' : 'work';
+  const accountRecs = records.filter(rec => rec.accountType === r.accountType && rec.type === r.type);
+  const catRecs = accountRecs.filter(rec => rec.category === r.category);
+  const catTotal = catRecs.reduce((s, rec) => s + rec.amount, 0);
+  const catCount = catRecs.length;
+  const allTotal = accountRecs.reduce((s, rec) => s + rec.amount, 0);
+  const catPct = allTotal > 0 ? Math.round(catTotal / allTotal * 100) : 0;
+  const catMap = {};
+  accountRecs.forEach(rec => { catMap[rec.category] = (catMap[rec.category] || 0) + rec.amount; });
+  const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+  const maxAmt = sorted.length > 0 ? sorted[0][1] : 1;
+  const barColors = ['#F56C6C','#E6A23C','#409EFF','#67C23A','#8B5CF6','#FF6B9D','#06B6D4'];
+  let catListHtml = sorted.map(([cat, amt], i) => {
+    const info = catInfo(cat, r.type);
+    const pct = allTotal > 0 ? Math.round(amt / allTotal * 100) : 0;
+    const w = Math.max((amt / maxAmt) * 100, 6);
+    const highlight = cat === r.category ? ' style="background:var(--primary);color:#fff;"' : '';
+    return '<div class="detail-cat-item"' + highlight + '>' +
+      '<span style="font-size:18px">' + info.icon + '</span>' +
+      '<span style="font-size:13px;min-width:36px">' + cat + '</span>' +
+      '<div class="detail-cat-bar-bg"><div class="detail-cat-bar" style="width:' + w + '%;background:' + barColors[i % barColors.length] + '"></div></div>' +
+      '<span class="detail-cat-amt">' + formatMoney(amt) + '</span>' +
+      '<span class="detail-cat-pct">' + pct + '%</span></div>';
+  }).join('');
+  document.getElementById('detailContent').innerHTML =
+    '<div class="detail-record">' +
+    '<div class="dr-icon" style="background:' + c.color + '20;">' + c.icon + '</div>' +
+    '<div class="dr-info"><div class="dr-cat">' + r.category + ' <span class="tx-acct-tag ' + acctCls + '">' + label + '</span></div>' +
+    '<div class="dr-date">' + r.date + (r.note ? ' · ' + r.note : '') + '</div></div>' +
+    '<div class="dr-amount ' + cls + '">' + sign + formatMoney(r.amount) + '</div></div>' +
+    '<div class="detail-stats-title">分类统计（' + label + '账户 ' + (r.type === 'expense' ? '支出' : '收入') + '）</div>' +
+    '<div class="detail-stats-grid">' +
+    '<div class="detail-stat-card"><div class="ds-val ' + cls + '">' + formatMoney(catTotal) + '</div><div class="ds-lbl">' + r.category + ' 总计</div></div>' +
+    '<div class="detail-stat-card"><div class="ds-val">' + catCount + '</div><div class="ds-lbl">' + r.category + ' 笔数</div></div>' +
+    '<div class="detail-stat-card"><div class="ds-val">' + catPct + '%</div><div class="ds-lbl">占比</div></div></div>' +
+    '<div class="detail-stats-title">分类排名</div>' +
+    '<div class="detail-cat-list">' + catListHtml + '</div>';
+  document.getElementById('detailOverlay').classList.add('show');
+}
+
+function closeDetailModal(e) {
+  if (!e || e.target === document.getElementById('detailOverlay')) {
+    document.getElementById('detailOverlay').classList.remove('show');
+  }
+}
+
 // ── Export via Web Share API ──
 async function exportAccount(acct) {
   let exportRecords;
   let filename;
+  if (acct === 'all') { exportRecords = [...records]; filename = '全部账单.xls'; }
+  else { exportRecords = records.filter(r => r.accountType === acct); filename = (acct === 'personal' ? '个人账单' : '工作账单') + '.xls'; }
+  if (exportRecords.length === 0) { showToast('没有数据可导出'); return; }
 
-  if (acct === 'all') {
-    exportRecords = [...records];
-    filename = '全部账单.csv';
-  } else {
-    exportRecords = records.filter(r => r.accountType === acct);
-    filename = (acct === 'personal' ? '个人账单' : '工作账单') + '.csv';
-  }
+  const acctLabel = acct === 'all' ? '全部' : (acct === 'personal' ? '个人' : '工作');
+  const totalIncome = exportRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+  const totalExpense = exportRecords.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
+  const balance = totalIncome - totalExpense;
 
-  if (exportRecords.length === 0) {
-    showToast('没有数据可导出');
-    return;
-  }
+  const style = '<style>body{font-family:-apple-system,Helvetica Neue,sans-serif;margin:20px}h2{font-size:18px;margin-bottom:8px}h3{font-size:14px;margin:16px 0 8px;color:#666}table{border-collapse:collapse;width:100%;margin-bottom:12px}th{background:#4F6EF7;color:#fff;font-weight:600;font-size:13px;padding:8px 10px;text-align:left;border:1px solid #4F6EF7}td{padding:6px 10px;border:1px solid #d0d0d0;font-size:13px}tr:nth-child(even) td{background:#f8f9ff}.num{text-align:right;font-variant-numeric:tabular-nums}.total td{font-weight:700;border-top:2px solid #4F6EF7;background:#eef1ff}</style>';
 
-  let csv = '日期,账户,类型,分类,金额,备注\n';
-  exportRecords.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(r => {
-    csv += `${r.date},${r.accountType==='work'?'工作':'个人'},${r.type==='expense'?'支出':'收入'},${r.category},${r.amount},${r.note||''}\n`;
+  let html = '<html><head><meta charset="UTF-8">' + style + '</head><body>';
+  html += '<h2>' + acctLabel + '账户财务报表</h2>';
+  html += '<table>';
+  html += '<tr><td>总计收入</td><td class="num">' + totalIncome.toFixed(2) + '</td></tr>';
+  html += '<tr><td>总计支出</td><td class="num">' + totalExpense.toFixed(2) + '</td></tr>';
+  html += '<tr><td>结余</td><td class="num">' + balance.toFixed(2) + '</td></tr>';
+  html += '<tr><td>总笔数</td><td class="num">' + exportRecords.length + '</td></tr>';
+  html += '</table>';
+
+  const sorted = [...exportRecords].sort((a,b) => new Date(b.date) - new Date(a.date));
+  html += '<h3>明细列表</h3><table>';
+  html += '<tr><th>日期</th><th>账号</th><th>类型</th><th>分类</th><th>金额</th><th>备注</th></tr>';
+  sorted.forEach(r => {
+    const acctName = r.accountType==='work' ? '工作' : '个人';
+    const typeName = r.type==='expense' ? '支出' : '收入';
+    html += '<tr><td>' + r.date + '</td><td>' + acctName + '</td><td>' + typeName + '</td><td>' + r.category + '</td><td class="num">' + r.amount.toFixed(2) + '</td><td>' + (r.note||'') + '</td></tr>';
   });
+  html += '</table>';
 
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-
-  if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: 'text/csv' });
-    const data = { files: [file], title: filename };
-    if (navigator.canShare(data)) {
-      try {
-        await navigator.share(data);
-        showToast('分享成功');
-        return;
-      } catch (e) {
-        if (e.name === 'AbortError') return;
-      }
-    }
+  const catMap = {};
+  exportRecords.filter(r => r.type === 'expense').forEach(r => { catMap[r.category] = (catMap[r.category] || 0) + r.amount; });
+  const catKeys = Object.keys(catMap);
+  if (catKeys.length > 0) {
+    html += '<h3>支出分类汇总</h3><table>';
+    html += '<tr><th>分类</th><th>金额</th><th>占比</th></tr>';
+    const sortedCat = Object.entries(catMap).sort((a,b) => b[1] - a[1]);
+    sortedCat.forEach(([cat, amt]) => {
+      const pct = totalExpense > 0 ? (amt / totalExpense * 100).toFixed(1) : 0;
+      html += '<tr><td>' + cat + '</td><td class="num">' + amt.toFixed(2) + '</td><td class="num">' + pct + '%</td></tr>';
+    });
+    html += '</table>';
   }
 
-  // Fallback: download
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('已下载 ' + filename);
-}
+  html += '<table><tr class="total"><td>合计</td><td class="num">收入:' + totalIncome.toFixed(2) + '</td><td class="num">支出:' + totalExpense.toFixed(2) + '</td><td class="num">结余:' + balance.toFixed(2) + '</td></tr></table>';
+  html += '</body></html>';
 
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  if (navigator.share && navigator.canShare) {
+    const file = new File([blob], filename, { type: 'application/vnd.ms-excel' });
+    const data = { files: [file], title: filename };
+    if (navigator.canShare(data)) { try { await navigator.share(data); showToast('分享成功'); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('已下载' + filename);
+}
 // ── Clear data ──
 function clearAccountData() {
   const label = currentAccount === 'personal' ? '个人' : '工作';
