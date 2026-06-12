@@ -1327,53 +1327,18 @@ document.addEventListener('click',function(e){
 
 
 var editingId = null;
-var categories = { expense: [{name:'餐饮',icon:'🍔',color:'#F56C6C'},{name:'交通',icon:'🛫',color:'#E6A23C'},{name:'购物',icon:'🛍',color:'#FF6B9D'},{name:'娱乐',icon:'🎬',color:'#8B5CF6'},{name:'住房',icon:'🏠',color:'#3B82F6'},{name:'通讯',icon:'📱',color:'#06B6D4'},{name:'医疗',icon:'💊',color:'#F472B6'},{name:'教育',icon:'📚',color:'#10B981'},{name:'日用',icon:'🧺',color:'#6366F1'},{name:'其他',icon:'📋',color:'#9CA3AF'}], income: [{name:'工资',icon:'💰',color:'#67C23A'},{name:'奖金',icon:'🏆',color:'#E6A23C'},{name:'投资',icon:'📈',color:'#409EFF'},{name:'兼职',icon:'💼',color:'#8B5CF6'},{name:'红包',icon:'🧧',color:'#F56C6C'},{name:'其他',icon:'📋',color:'#9CA3AF'}] };
-var editCat = '';
 
-function editInDetail(id) {
+function openModalForEdit(id) {
   var r = records.find(function(rec) { return rec.id === id; });
   if (!r) return;
   editingId = id;
-  editCat = r.category;
-  var c = categories[r.type] || [];
-  var catHtml = c.map(function(cat) {
-    return '<div class="detail-edit-cat' + (cat.name === r.category ? ' selected' : '') + '" onclick="selectEditCat('' + cat.name + '')"><div class="icon" style="background:' + cat.color + '20;">' + cat.icon + '</div><div class="name">' + cat.name + '</div></div>';
-  }).join('');
-  var dc = document.getElementById('detailContent');
-  dc.innerHTML =
-    '<div style="padding:4px 0"><div class="detail-stats-title">编辑记录</div>' +
-    '<div class="detail-edit-row"><div class="half"><input type="number" class="detail-edit-field" id="editAmount" value="' + r.amount + '" step="0.01" placeholder="金额"></div>' +
-    '<div class="half"><input type="date" class="detail-edit-field" id="editDate" value="' + r.date + '"></div></div>' +
-    '<div class="detail-edit-cat-grid" id="editCatGrid">' + catHtml + '</div>' +
-    '<input type="text" class="detail-edit-field" id="editNote" value="' + (r.note || '') + '" placeholder="备注">' +
-    '<div class="detail-edit-actions"><button class="save-btn" onclick="saveDetailEdit()">保存</button><button class="cancel-btn" onclick="showRecordDetail(' + id + ')">取消</button></div></div>';
-}
-
-function selectEditCat(name) {
-  editCat = name;
-  document.querySelectorAll('.detail-edit-cat').forEach(function(el) {
-    el.classList.toggle('selected', el.textContent.trim() === name || el.querySelector('.name') && el.querySelector('.name').textContent === name);
-  });
-}
-
-function saveDetailEdit() {
-  if (!editingId) return;
-  var amt = parseFloat(document.getElementById('editAmount').value);
-  if (!amt || amt <= 0) { showToast('请输入金额'); return; }
-  for (var i = 0; i < records.length; i++) {
-    if (records[i].id === editingId) {
-      records[i].amount = Math.round(amt * 100) / 100;
-      records[i].category = editCat;
-      records[i].note = document.getElementById('editNote').value.trim();
-      records[i].date = document.getElementById('editDate').value;
-      break;
-    }
-  }
-  editingId = null;
-  save();
-  renderAll();
   closeDetailModal();
-  showToast('已保存');
+  openModal(r.type);
+  document.getElementById('amountInput').value = r.amount;
+  document.getElementById('noteInput').value = r.note || '';
+  document.getElementById('dateInput').value = r.date;
+  selectedCategory = r.category;
+  renderCategoryGrid();
 }
 
 var origSave = saveRecord;
@@ -1407,7 +1372,7 @@ showRecordDetail = function(id) {
   var eb = document.createElement('button');
   eb.className = 'detail-edit-btn';
   eb.textContent = '✏ 编辑';
-  eb.onclick = function() { editInDetail(id); };
+  eb.onclick = function() { openModalForEdit(id); };
   dc.insertBefore(eb, dc.firstChild);
 };
 
