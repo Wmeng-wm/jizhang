@@ -772,7 +772,7 @@ function renderHome() {
 
   // Recent transactions for current account
   const recent = [...acctRecords()]
-    .sort((a,b) => new Date(a.date) - new Date(b.date) || b.id - a.id)
+    .sort((a,b) => new Date(b.date) - new Date(a.date) || b.id - a.id)
     .slice(0, 10);
   const container = document.getElementById('recentList');
   if (recent.length === 0) {
@@ -1303,6 +1303,7 @@ function openModalForEdit(id) {
   closeDetailModal();
   openModal(r.type);
   document.getElementById('amountInput').value = r.amount;
+  document.getElementById('saveBtn').disabled = false;
   document.getElementById('noteInput').value = r.note || '';
   document.getElementById('dateInput').value = r.date;
   selectedCategory = r.category;
