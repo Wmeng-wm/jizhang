@@ -478,7 +478,7 @@ body {
 .detail-cat-pct { font-size: 11px; color: var(--text-secondary); min-width: 36px; text-align: right; }
 .detail-close-btn { width: 100%; padding: 14px; background: var(--bg); border: none; border-radius: 12px; font-size: 15px; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
 .detail-close-btn:active { opacity: 0.7; }
-.swipe-container{position:relative;overflow:hidden;margin:0 16px 8px;border-radius:12px;background:var(--card)}.swipe-content{position:relative;z-index:1;background:var(--card);transition:transform .2s ease;border-radius:12px}.swipe-content.swiped{transform:translateX(-72px)}.swipe-delete{position:absolute;right:0;top:0;bottom:0;width:72px;background:#F56C6C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;border-radius:0 12px 12px 0;cursor:pointer;z-index:0}
+.swipe-container{position:relative;overflow:hidden;margin:0 16px 8px;border-radius:12px;background:var(--card)}.swipe-content{position:relative;z-index:1;background:var(--card);transition:transform .2s ease;border-radius:12px}.swipe-content.swiped{transform:translateX(-144px)}.swipe-delete{position:absolute;right:0;top:0;bottom:0;width:144px;display:flex;z-index:0;border-radius:0 12px 12px 0;overflow:hidden}.swipe-btn{flex:1;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;cursor:pointer;border:none}.swipe-btn.edit{background:var(--primary)}.swipe-btn.del{background:#F56C6C}
 .swipe-container .tx-item{margin:0!important}
 /* Month nav */.month-nav{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}.month-nav button{background:none;border:none;font-size:20px;padding:4px 12px;cursor:pointer;color:var(--primary);border-radius:8px}.month-nav button:active{background:var(--bg)}.month-nav .month-label{font-size:15px;font-weight:600}/* Search */.search-bar{padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}.search-bar input{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;background:var(--bg)}/* Edit */.detail-edit-btn{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:12px}.detail-edit-btn:active{opacity:.85}</style>
 </head>
@@ -1277,11 +1277,19 @@ function initSwipeItems() {
     item.parentNode.insertBefore(ct, item);
     cc.appendChild(item);
     ct.appendChild(cc);
-    var del = document.createElement('div');
-    del.className = 'swipe-delete';
-    del.textContent = '删除';
-    del.onclick = function(e) { e.stopPropagation(); deleteRecord(parseInt(id)); };
-    ct.appendChild(del);
+    var actions = document.createElement('div');
+    actions.className = 'swipe-delete';
+    var eb = document.createElement('div');
+    eb.className = 'swipe-btn edit';
+    eb.textContent = '编辑';
+    eb.onclick = function(e) { e.stopPropagation(); openModalForEdit(parseInt(id)); };
+    actions.appendChild(eb);
+    var db = document.createElement('div');
+    db.className = 'swipe-btn del';
+    db.textContent = '删除';
+    db.onclick = function(e) { e.stopPropagation(); deleteRecord(parseInt(id)); };
+    actions.appendChild(db);
+    ct.appendChild(actions);
   });
 }
 
@@ -1297,7 +1305,7 @@ document.addEventListener('touchmove',function(e){
   if(Math.abs(dx)<5&&!d.moved)return;
   e.preventDefault();d.moved=true;
   var cc=ct.querySelector('.swipe-content');
-  if(dx<0)cc.style.transform='translateX('+Math.max(dx,-72)+'px)';
+  if(dx<0)cc.style.transform='translateX('+Math.max(dx,-144)+'px)';
   else if(cc.style.transform){var cur=parseFloat(cc.style.transform.replace('translateX(','').replace('px)',''))||0;cc.style.transform='translateX('+Math.min(cur+dx*0.3,0)+'px)';}
 },{passive:false});
 document.addEventListener('touchend',function(e){
@@ -1306,7 +1314,7 @@ document.addEventListener('touchend',function(e){
   if(d.moved){
     var tx=cc.style.transform?parseFloat(cc.style.transform.replace('translateX(','').replace('px)','')):0;
     document.querySelectorAll('.swipe-content.swiped').forEach(function(el){if(el!==cc)el.classList.remove('swiped');});
-    cc.classList.toggle('swiped',tx<-36);cc.style.transform='';
+    cc.classList.toggle('swiped',tx<-72);cc.style.transform='';
   }else{
     if(cc.classList.contains('swiped'))cc.classList.remove('swiped');
     else showRecordDetail(parseInt(ct.dataset.id));
