@@ -430,23 +430,28 @@ body {
 .toast.show { opacity: 1; }
 .tx-item { position: relative; }
 .tx-item .delete-btn {
-  position: absolute; right: 8px; top: 50%;
+  position: absolute;
+  right: 4px;
+  top: 50%;
   transform: translateY(-50%);
-  width: 32px; height: 32px;
-  border: none; border-radius: 50%;
-  background: transparent;
-  color: var(--text-light);
-  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(245, 108, 108, 0.12);
+  color: #F56C6C;
+  font-size: 14px;
   cursor: pointer;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
+  transition: all 0.15s;
 }
-.tx-item:hover .delete-btn, .tx-item:active .delete-btn { display: flex; }
-.delete-btn:hover { background: #fee2e2; color: var(--danger); }
-
-.detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; justify-content: center; align-items: flex-end; }
+.delete-btn:hover {
+  background: #F56C6C;
+  color: #fff;
+}}
 .detail-overlay.show { display: flex; }
 .detail-modal { width: 100%; max-width: 430px; background: #fff; border-radius: 20px 20px 0 0; padding: 8px 20px; padding-bottom: calc(20px + var(--safe-bottom)); animation: slideUp 0.25s ease; }
 .detail-handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 16px; }
@@ -899,58 +904,38 @@ function generateStats() {
 async function exportStatsResult(start, end) {
   const periodRecords = records.filter(r => r.accountType === currentAccount && r.date >= start && r.date <= end);
   if (periodRecords.length === 0) { showToast('没有数据可导出'); return; }
-
-  const isPersonal = currentAccount === 'personal';
-  const label = isPersonal ? '个人' : '工作';
-  const filename = label + '账户报表_' + start + '_' + end + '.xls';
-
+  const label = currentAccount === 'personal' ? '个人' : '工作';
+  const filename = label + '账户报表_' + start + '_' + end + '.csv';
   const expenses = periodRecords.filter(r => r.type === 'expense');
   const incomes = periodRecords.filter(r => r.type === 'income');
   const totalExpense = expenses.reduce((s,r) => s + r.amount, 0);
   const totalIncome = incomes.reduce((s,r) => s + r.amount, 0);
   const balance = totalIncome - totalExpense;
-
-  const style = '<style>body{font-family:-apple-system,Helvetica Neue,sans-serif;margin:20px}h2{font-size:18px;margin-bottom:8px}h3{font-size:14px;margin:16px 0 8px;color:#666}table{border-collapse:collapse;width:100%;margin-bottom:12px}th{background:#4F6EF7;color:#fff;font-weight:600;font-size:13px;padding:8px 10px;text-align:left;border:1px solid #4F6EF7}td{padding:6px 10px;border:1px solid #d0d0d0;font-size:13px}tr:nth-child(even) td{background:#f8f9ff}.num{text-align:right;font-variant-numeric:tabular-nums}.total td{font-weight:700;border-top:2px solid #4F6EF7;background:#eef1ff}</style>';
-
-  let html = '<html><head><meta charset="UTF-8">' + style + '</head><body>';
-  html += '<h2>' + label + '账户财务报表</h2>';
-  html += '<table>';
-  html += '<tr><td>日期范围</td><td>' + start + ' 至 ' + end + '</td></tr>';
-  html += '<tr><td>总收入</td><td class="num">' + totalIncome.toFixed(2) + '</td></tr>';
-  html += '<tr><td>总支出</td><td class="num">' + totalExpense.toFixed(2) + '</td></tr>';
-  html += '<tr><td>结余</td><td class="num">' + balance.toFixed(2) + '</td></tr>';
-  html += '<tr><td>总笔数</td><td class="num">' + periodRecords.length + '</td></tr>';
-  html += '</table>';
-
+  let csv = '\ufeff';
+  csv += label + '账户财务报表\n';
+  csv += '\n';
+  csv += '日期范围,,' + start + ' 至 ' + end + '\n';
+  csv += '总收入,,' + totalIncome.toFixed(2) + '\n';
+  csv += '总支出,,' + totalExpense.toFixed(2) + '\n';
+  csv += '结余,,' + balance.toFixed(2) + '\n';
+  csv += '总笔数,,' + periodRecords.length + '\n';
+  csv += '\n';
+  csv += '日期,类型,分类,金额,备注\n';
   const sorted = [...periodRecords].sort((a,b) => new Date(b.date) - new Date(a.date));
-  html += '<h3>明细列表</h3><table>';
-  html += '<tr><th>日期</th><th>类型</th><th>分类</th><th>金额</th><th>备注</th></tr>';
-  sorted.forEach(r => {
-    const typeName = r.type==='expense' ? '支出' : '收入';
-    html += '<tr><td>' + r.date + '</td><td>' + typeName + '</td><td>' + r.category + '</td><td class="num">' + r.amount.toFixed(2) + '</td><td>' + (r.note||'') + '</td></tr>';
-  });
-  html += '</table>';
-
+  sorted.forEach(r => { const t = r.type === 'expense' ? '支出' : '收入'; csv += r.date + ',' + t + ',' + r.category + ',' + r.amount.toFixed(2) + ',' + (r.note || '') + '\n'; });
   const catMap = {};
   expenses.forEach(r => { catMap[r.category] = (catMap[r.category] || 0) + r.amount; });
-  const catKeys = Object.keys(catMap);
-  if (catKeys.length > 0) {
-    html += '<h3>支出分类汇总</h3><table>';
-    html += '<tr><th>分类</th><th>金额</th><th>占比</th></tr>';
-    const sortedCat = Object.entries(catMap).sort((a,b) => b[1] - a[1]);
-    sortedCat.forEach(([cat, amt]) => {
-      const pct = totalExpense > 0 ? (amt / totalExpense * 100).toFixed(1) : 0;
-      html += '<tr><td>' + cat + '</td><td class="num">' + amt.toFixed(2) + '</td><td class="num">' + pct + '%</td></tr>';
-    });
-    html += '</table>';
+  if (Object.keys(catMap).length > 0) {
+    csv += '\n支出分类汇总\n';
+    csv += '分类,金额,占比\n';
+    const sc = Object.entries(catMap).sort((a,b) => b[1] - a[1]);
+    sc.forEach(([cat, amt]) => { const pct = totalExpense > 0 ? (amt / totalExpense * 100).toFixed(1) : 0; csv += cat + ',' + amt.toFixed(2) + ',' + pct + '%\n'; });
   }
-
-  html += '<table><tr class="total"><td>合计</td><td class="num">收入:' + totalIncome.toFixed(2) + '</td><td class="num">支出:' + totalExpense.toFixed(2) + '</td><td class="num">结余:' + balance.toFixed(2) + '</td></tr></table>';
-  html += '</body></html>';
-
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  csv += '\n';
+  csv += '合计,收入:' + totalIncome.toFixed(2) + ',支出:' + totalExpense.toFixed(2) + ',结余:' + balance.toFixed(2) + '\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: 'application/vnd.ms-excel' });
+    const file = new File([blob], filename, { type: 'text/csv' });
     const data = { files: [file], title: filename };
     if (navigator.canShare(data)) { try { await navigator.share(data); showToast('分享成功'); return; } catch (e) { if (e.name === 'AbortError') return; } }
   }
@@ -1179,8 +1164,8 @@ function closeDetailModal(e) {
 async function exportAccount(acct) {
   let exportRecords;
   let filename;
-  if (acct === 'all') { exportRecords = [...records]; filename = '全部账单.xls'; }
-  else { exportRecords = records.filter(r => r.accountType === acct); filename = (acct === 'personal' ? '个人账单' : '工作账单') + '.xls'; }
+  if (acct === 'all') { exportRecords = [...records]; filename = '全部账单.csv'; }
+  else { exportRecords = records.filter(r => r.accountType === acct); filename = (acct === 'personal' ? '个人账单' : '工作账单') + '.csv'; }
   if (exportRecords.length === 0) { showToast('没有数据可导出'); return; }
 
   const acctLabel = acct === 'all' ? '全部' : (acct === 'personal' ? '个人' : '工作');
@@ -1188,47 +1173,42 @@ async function exportAccount(acct) {
   const totalExpense = exportRecords.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
   const balance = totalIncome - totalExpense;
 
-  const style = '<style>body{font-family:-apple-system,Helvetica Neue,sans-serif;margin:20px}h2{font-size:18px;margin-bottom:8px}h3{font-size:14px;margin:16px 0 8px;color:#666}table{border-collapse:collapse;width:100%;margin-bottom:12px}th{background:#4F6EF7;color:#fff;font-weight:600;font-size:13px;padding:8px 10px;text-align:left;border:1px solid #4F6EF7}td{padding:6px 10px;border:1px solid #d0d0d0;font-size:13px}tr:nth-child(even) td{background:#f8f9ff}.num{text-align:right;font-variant-numeric:tabular-nums}.total td{font-weight:700;border-top:2px solid #4F6EF7;background:#eef1ff}</style>';
-
-  let html = '<html><head><meta charset="UTF-8">' + style + '</head><body>';
-  html += '<h2>' + acctLabel + '账户财务报表</h2>';
-  html += '<table>';
-  html += '<tr><td>总计收入</td><td class="num">' + totalIncome.toFixed(2) + '</td></tr>';
-  html += '<tr><td>总计支出</td><td class="num">' + totalExpense.toFixed(2) + '</td></tr>';
-  html += '<tr><td>结余</td><td class="num">' + balance.toFixed(2) + '</td></tr>';
-  html += '<tr><td>总笔数</td><td class="num">' + exportRecords.length + '</td></tr>';
-  html += '</table>';
+  let csv = '\\ufeff';
+  csv += acctLabel + '账户财务报表\n';
+  csv += '\n';
+  csv += '总计收入,,' + totalIncome.toFixed(2) + '\n';
+  csv += '总计支出,,' + totalExpense.toFixed(2) + '\n';
+  csv += '结余,,' + balance.toFixed(2) + '\n';
+  csv += '总笔数,,' + exportRecords.length + '\n';
+  csv += '\n';
 
   const sorted = [...exportRecords].sort((a,b) => new Date(b.date) - new Date(a.date));
-  html += '<h3>明细列表</h3><table>';
-  html += '<tr><th>日期</th><th>账号</th><th>类型</th><th>分类</th><th>金额</th><th>备注</th></tr>';
+  csv += '日期,账号,类型,分类,金额,备注\n';
   sorted.forEach(r => {
-    const acctName = r.accountType==='work' ? '工作' : '个人';
-    const typeName = r.type==='expense' ? '支出' : '收入';
-    html += '<tr><td>' + r.date + '</td><td>' + acctName + '</td><td>' + typeName + '</td><td>' + r.category + '</td><td class="num">' + r.amount.toFixed(2) + '</td><td>' + (r.note||'') + '</td></tr>';
+    const acctName = r.accountType === 'work' ? '工作' : '个人';
+    const typeName = r.type === 'expense' ? '支出' : '收入';
+    csv += r.date + ',' + acctName + ',' + typeName + ',' + r.category + ',' + r.amount.toFixed(2) + ',' + (r.note || '') + '\n';
   });
-  html += '</table>';
 
   const catMap = {};
   exportRecords.filter(r => r.type === 'expense').forEach(r => { catMap[r.category] = (catMap[r.category] || 0) + r.amount; });
   const catKeys = Object.keys(catMap);
   if (catKeys.length > 0) {
-    html += '<h3>支出分类汇总</h3><table>';
-    html += '<tr><th>分类</th><th>金额</th><th>占比</th></tr>';
+    csv += '\n支出分类汇总\n';
+    csv += '分类,金额,占比\n';
     const sortedCat = Object.entries(catMap).sort((a,b) => b[1] - a[1]);
     sortedCat.forEach(([cat, amt]) => {
       const pct = totalExpense > 0 ? (amt / totalExpense * 100).toFixed(1) : 0;
-      html += '<tr><td>' + cat + '</td><td class="num">' + amt.toFixed(2) + '</td><td class="num">' + pct + '%</td></tr>';
+      csv += cat + ',' + amt.toFixed(2) + ',' + pct + '%\n';
     });
-    html += '</table>';
   }
 
-  html += '<table><tr class="total"><td>合计</td><td class="num">收入:' + totalIncome.toFixed(2) + '</td><td class="num">支出:' + totalExpense.toFixed(2) + '</td><td class="num">结余:' + balance.toFixed(2) + '</td></tr></table>';
-  html += '</body></html>';
+  csv += '\n';
+  csv += '合计,收入:' + totalIncome.toFixed(2) + ',支出:' + totalExpense.toFixed(2) + ',结余:' + balance.toFixed(2) + '\n';
 
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: 'application/vnd.ms-excel' });
+    const file = new File([blob], filename, { type: 'text/csv' });
     const data = { files: [file], title: filename };
     if (navigator.canShare(data)) { try { await navigator.share(data); showToast('分享成功'); return; } catch (e) { if (e.name === 'AbortError') return; } }
   }
