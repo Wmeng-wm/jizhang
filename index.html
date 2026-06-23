@@ -480,15 +480,15 @@ body {
 .detail-close-btn:active { opacity: 0.7; }
 .swipe-container{position:relative;overflow:hidden;margin:0 16px 8px;border-radius:12px;background:var(--card)}.swipe-content{position:relative;z-index:1;background:var(--card);transition:transform .2s ease;border-radius:12px}.swipe-content.swiped{transform:translateX(-144px)}.swipe-delete{position:absolute;right:0;top:0;bottom:0;width:144px;display:flex;z-index:0;border-radius:0 12px 12px 0;overflow:hidden}.swipe-btn{flex:1;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;cursor:pointer;border:none}.swipe-btn.edit{background:var(--primary)}.swipe-btn.del{background:#F56C6C}
 .swipe-container .tx-item{margin:0!important}
-/* Month nav */.month-nav{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}.month-nav button{background:none;border:none;font-size:20px;padding:4px 12px;cursor:pointer;color:var(--primary);border-radius:8px}.month-nav button:active{background:var(--bg)}.month-nav .month-label{font-size:15px;font-weight:600}/* Search */.search-bar{padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}.search-bar input{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;background:var(--bg)}/* Edit */.detail-edit-btn{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:12px}.detail-edit-btn:active{opacity:.85}.toggle-wrap{display:flex;align-items:center;gap:10px}.toggle{position:relative;width:44px;height:24px;flex-shrink:0}.toggle input{opacity:0;width:0;height:0}.toggle .slider{position:absolute;cursor:pointer;inset:0;background:#ddd;transition:.2s;border-radius:12px}.toggle .slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;transition:.2s;border-radius:50%}.toggle input:checked+.slider{background:var(--primary)}.toggle input:checked+.slider:before{transform:translateX(20px)}</style>
+/* Month nav */.month-nav{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}.month-nav button{background:none;border:none;font-size:20px;padding:4px 12px;cursor:pointer;color:var(--primary);border-radius:8px}.month-nav button:active{background:var(--bg)}.month-nav .month-label{font-size:15px;font-weight:600}/* Search */.search-bar{padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}.search-bar input{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;background:var(--bg)}/* Edit */.detail-edit-btn{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:12px}.detail-edit-btn:active{opacity:.85}</style>
 </head>
 <body>
 <div id="app">
   <div class="header">
     <h1>记账</h1>
     <div class="account-switch" id="accountSwitch">
-      <button data-acct="personal" class="active">?? 个人</button>
-      <button data-acct="work">?? 工作</button>
+      <button data-acct="personal" class="active">👤 个人</button>
+      <button data-acct="work">💼 工作</button>
     </div>
   </div>
 
@@ -497,7 +497,7 @@ body {
     <div class="account-cards" id="accountCards"></div>
     <div class="quick-actions">
       <button class="quick-btn expense" onclick="openModal('expense')">
-        ? 记支出<span class="acct-label" id="expenseAcctLabel"></span>
+        − 记支出<span class="acct-label" id="expenseAcctLabel"></span>
       </button>
       <button class="quick-btn income" onclick="openModal('income')">
         + 记收入<span class="acct-label" id="incomeAcctLabel"></span>
@@ -514,9 +514,9 @@ body {
   <div class="page" id="page-history">
     
     <div class="month-nav" id="monthNav">
-      <button onclick="prevMonth()">?</button>
+      <button onclick="prevMonth()">‹</button>
       <span class="month-label" id="monthLabel"></span>
-      <button onclick="nextMonth()">?</button>
+      <button onclick="nextMonth()">›</button>
     </div>
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="搜索备注、分类、金额..." oninput="onSearch()">
@@ -538,44 +538,25 @@ body {
   <div class="page" id="page-settings">
     <div class="settings-group">
       <div class="settings-item" onclick="exportAccount('personal')">
-        <div class="left"><span class="icon">??</span><div>导出个人账单<span class="info">CSV · 可分享到微信/文件</span></div></div>
+        <div class="left"><span class="icon">👤</span><div>导出个人账单<span class="info">CSV · 可分享到微信/文件</span></div></div>
         <div class="right">›</div>
       </div>
       <div class="settings-item" onclick="exportAccount('work')">
-        <div class="left"><span class="icon">??</span><div>导出工作账单<span class="info">CSV · 可分享到微信/文件</span></div></div>
+        <div class="left"><span class="icon">💼</span><div>导出工作账单<span class="info">CSV · 可分享到微信/文件</span></div></div>
         <div class="right">›</div>
       </div>
       <div class="settings-item" onclick="exportAccount('all')">
-        <div class="left"><span class="icon">??</span><div>导出全部账单<span class="info">包含个人和工作的所有记录</span></div></div>
+        <div class="left"><span class="icon">📊</span><div>导出全部账单<span class="info">包含个人和工作的所有记录</span></div></div>
         <div class="right">›</div>
-      </div>
-      <div class="settings-item" onclick="exportBackup()">
-        <div class="left"><span class="icon">💾</span><div>导出备份<span class="info">JSON 格式 · 迁移数据用</span></div></div>
-        <div class="right">›</div>
-      </div>
-      <div class="settings-item" onclick="document.getElementById('backupInput').click()">
-        <div class="left"><span class="icon">📥</span><div>导入备份<span class="info">替换当前数据为备份文件内容</span></div></div>
-        <div class="right">›</div>
-      </div>
-      <input type="file" id="backupInput" accept=".json" style="display:none" onchange="importBackup(event)">
-    </div>
-    <div class="settings-group">
-      <div class="settings-item">
-        <div class="left"><span class="icon">🤖</span><div>AI 增强识别<span class="info">调用 AI 识别更精准</span></div></div>
-        <div class="right"><label class="toggle"><input type="checkbox" id="aiToggle" onchange="setAiEnabled(this.checked)"><span class="slider"></span></label></div>
-      </div>
-      <div class="settings-item" id="apiKeyItem" onclick="configureApiKey()">
-        <div class="left"><span class="icon">🔑</span><div>DeepSeek API Key</div></div>
-        <div class="right" id="apiKeyStatus">未设置</div>
       </div>
     </div>
     <div class="settings-group">
-     <div class="settings-item danger" onclick="clearAccountData()">
-        <div class="left"><span class="icon">??</span>清除当前账户数据</div>
+      <div class="settings-item danger" onclick="clearAccountData()">
+        <div class="left"><span class="icon">🗑</span>清除当前账户数据</div>
         <div class="right">›</div>
       </div>
       <div class="settings-item danger" onclick="clearAllData()">
-        <div class="left"><span class="icon">??</span>清除所有数据</div>
+        <div class="left"><span class="icon">🗑</span>清除所有数据</div>
         <div class="right">›</div>
       </div>
     </div>
@@ -587,16 +568,16 @@ body {
   <!-- Tab Bar -->
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="home" onclick="switchTab('home')">
-      <span class="tab-icon">??</span>首页
+      <span class="tab-icon">🏠</span>首页
     </button>
     <button class="tab-btn" data-tab="history" onclick="switchTab('history')">
-      <span class="tab-icon">??</span>明细
+      <span class="tab-icon">📋</span>明细
     </button>
     <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">
-      <span class="tab-icon">??</span>统计
+      <span class="tab-icon">📊</span>统计
     </button>
     <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">
-      <span class="tab-icon">??</span>我的
+      <span class="tab-icon">⚙️</span>我的
     </button>
   </div>
 </div>
@@ -611,8 +592,8 @@ body {
       <button id="typeIncome" onclick="setModalType('income')">收入</button>
     </div>
     <div class="type-toggle" id="modalAcctToggle" style="margin-bottom:20px;">
-      <button data-acct="personal" class="active" onclick="setModalAccount('personal')">?? 个人</button>
-      <button data-acct="work" onclick="setModalAccount('work')">?? 工作</button>
+      <button data-acct="personal" class="active" onclick="setModalAccount('personal')">👤 个人</button>
+      <button data-acct="work" onclick="setModalAccount('work')">💼 工作</button>
     </div>
     <input type="number" class="amount-input" id="amountInput" placeholder="0.00" inputmode="decimal" step="0.01">
     <div class="category-grid" id="categoryGrid"></div>
@@ -640,47 +621,47 @@ const STORAGE_KEY = 'jizhang_records';
 const CATEGORIES = {
   personal: {
     expense: [
-      { name: '餐饮', icon: '??', color: '#F56C6C' },
-      { name: '交通', icon: '??', color: '#E6A23C' },
-      { name: '购物', icon: '??', color: '#FF6B9D' },
-      { name: '通讯', icon: '??', color: '#06B6D4' },
-      { name: '医疗', icon: '??', color: '#F472B6' },
-      { name: '教育', icon: '??', color: '#10B981' },
-      { name: '超市', icon: '??', color: '#34D399' },
-      { name: '信用卡', icon: '??', color: '#F59E0B' },
-      { name: '保险', icon: '???', color: '#6366F1' },
-      { name: '其他', icon: '??', color: '#9CA3AF' },
+      { name: '餐饮', icon: '🍽', color: '#F56C6C' },
+      { name: '交通', icon: '🚗', color: '#E6A23C' },
+      { name: '购物', icon: '🛍', color: '#FF6B9D' },
+      { name: '通讯', icon: '📱', color: '#06B6D4' },
+      { name: '医疗', icon: '💊', color: '#F472B6' },
+      { name: '教育', icon: '📚', color: '#10B981' },
+      { name: '超市', icon: '🏪', color: '#34D399' },
+      { name: '信用卡', icon: '💳', color: '#F59E0B' },
+      { name: '保险', icon: '🛡️', color: '#6366F1' },
+      { name: '其他', icon: '💸', color: '#9CA3AF' },
     ],
     income: [
-      { name: '工资', icon: '??', color: '#67C23A' },
-      { name: '兼职', icon: '??', color: '#409EFF' },
-      { name: '理财', icon: '??', color: '#E6A23C' },
-      { name: '红包', icon: '??', color: '#F56C6C' },
-      { name: '退款', icon: '??', color: '#909399' },
-      { name: '上月结余', icon: '??', color: '#8B5CF6' },
-      { name: '其他', icon: '??', color: '#67C23A' },
+      { name: '工资', icon: '💼', color: '#67C23A' },
+      { name: '兼职', icon: '💻', color: '#409EFF' },
+      { name: '理财', icon: '📈', color: '#E6A23C' },
+      { name: '红包', icon: '🧧', color: '#F56C6C' },
+      { name: '退款', icon: '↩️', color: '#909399' },
+      { name: '上月结余', icon: '📦', color: '#8B5CF6' },
+      { name: '其他', icon: '💰', color: '#67C23A' },
     ]
   },
   work: {
     expense: [
-      { name: '餐饮', icon: '??', color: '#F56C6C' },
-      { name: '飞机', icon: '??', color: '#3B82F6' },
-      { name: '高铁', icon: '??', color: '#F59E0B' },
-      { name: '网约车', icon: '??', color: '#10B981' },
-      { name: '购物', icon: '??', color: '#FF6B9D' },
-      { name: '娱乐', icon: '??', color: '#8B5CF6' },
-      { name: '酒店', icon: '??', color: '#FF6B9D' },
-      { name: '通讯', icon: '??', color: '#06B6D4' },
-      { name: '医疗', icon: '??', color: '#F472B6' },
-      { name: '其他', icon: '??', color: '#9CA3AF' },
+      { name: '餐饮', icon: '🍽', color: '#F56C6C' },
+      { name: '飞机', icon: '✈️', color: '#3B82F6' },
+      { name: '高铁', icon: '🚄', color: '#F59E0B' },
+      { name: '网约车', icon: '🚕', color: '#10B981' },
+      { name: '购物', icon: '🛍', color: '#FF6B9D' },
+      { name: '娱乐', icon: '🎮', color: '#8B5CF6' },
+      { name: '酒店', icon: '🏨', color: '#FF6B9D' },
+      { name: '通讯', icon: '📱', color: '#06B6D4' },
+      { name: '医疗', icon: '💊', color: '#F472B6' },
+      { name: '其他', icon: '💸', color: '#9CA3AF' },
     ],
     income: [
-      { name: '报销', icon: '??', color: '#67C23A' },
-      { name: '兼职', icon: '??', color: '#409EFF' },
-      { name: '理财', icon: '??', color: '#E6A23C' },
-      { name: '红包', icon: '??', color: '#F56C6C' },
-      { name: '退款', icon: '??', color: '#909399' },
-      { name: '其他', icon: '??', color: '#67C23A' },
+      { name: '报销', icon: '📋', color: '#67C23A' },
+      { name: '兼职', icon: '💻', color: '#409EFF' },
+      { name: '理财', icon: '📈', color: '#E6A23C' },
+      { name: '红包', icon: '🧧', color: '#F56C6C' },
+      { name: '退款', icon: '↩️', color: '#909399' },
+      { name: '其他', icon: '💰', color: '#67C23A' },
     ]
   }
 };
@@ -704,7 +685,7 @@ let selectedCategory = null;
 let modalAccount = 'personal';
 
 // ── Helpers ──
-function formatMoney(n) { return '￥' + Number(n).toFixed(2); }
+function formatMoney(n) { return '¥' + Number(n).toFixed(2); }
 function formatDate(d) { const t = new Date(d); return `${t.getMonth()+1}/${t.getDate()}`; }
 function nowDate() { return new Date().toISOString().slice(0, 10); }
 function getLocalDateStr() {
@@ -733,7 +714,7 @@ function catInfo(name, type) {
     found = CATEGORIES[acct][type].find(function(c) { return c.name === name; });
     if (found) return found;
   }
-  return { name: name, icon: '??', color: '#9CA3AF' };
+  return { name: name, icon: '📌', color: '#9CA3AF' };
 }
 
 // ── Render Filter Bar ──
@@ -820,7 +801,7 @@ function renderHome() {
     const balance = income - expense;
 
     const isActive = currentAccount === acct;
-    const icon = acct === 'personal' ? '??' : '??';
+    const icon = acct === 'personal' ? '👤' : '💼';
     const label = acct === 'personal' ? '个人账户' : '工作账户';
     const balanceColor = balance >= 0 ? 'var(--primary)' : 'var(--danger)';
 
@@ -844,7 +825,7 @@ function renderHome() {
     .slice(0, 10);
   const container = document.getElementById('recentList');
   if (recent.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">??</div><p>还没有账单，开始记账吧</p></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>还没有账单，开始记账吧</p></div>`;
   } else {
     container.innerHTML = recent.map(r => {
       const c = catInfo(r.category, r.type);
@@ -886,7 +867,7 @@ function renderHistory(filter) {
   filtered.sort((a,b) => new Date(a.date) - new Date(b.date) || b.id - a.id);
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">??</div><p>暂无记录</p></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>暂无记录</p></div>`;
     return;
   }
 
@@ -910,7 +891,7 @@ function renderStats() {
   const today = getLocalDateStr();
   const firstOfMonth = today.slice(0, 7) + '-01';
   const isPersonal = currentAccount === 'personal';
-  const icon = isPersonal ? '??' : '??';
+  const icon = isPersonal ? '👤' : '💼';
   const label = isPersonal ? '个人' : '工作';
   const bannerCls = isPersonal ? 'personal' : 'work';
 
@@ -954,7 +935,7 @@ function generateStats() {
     html += `
       <div style="padding:0 16px 16px;">
         <button class="quick-btn income" style="width:100%;background:var(--primary);" onclick="exportStatsResult('${start}', '${end}')">
-          ?? 导出${label}汇总报表
+          📤 导出${label}汇总报表
         </button>
       </div>`;
   }
@@ -1448,7 +1429,7 @@ showRecordDetail = function(id) {
   var dc = document.getElementById('detailContent');
   var eb = document.createElement('button');
   eb.className = 'detail-edit-btn';
-  eb.textContent = '? 编辑';
+  eb.textContent = '✏ 编辑';
   eb.onclick = function() { openModalForEdit(id); };
   dc.insertBefore(eb, dc.firstChild);
 };
@@ -1516,7 +1497,7 @@ renderHistory = function(filter) {
   }
   filtered.sort(function(a,b) { return new Date(b.date) - new Date(a.date) || b.id - a.id; });
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">??</div><p>无符合条件的记录</p></div>';
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>无符合条件的记录</p></div>';
     initSwipeItems(); return;
   }
   var html = '', lastMonth = '';
@@ -1534,7 +1515,7 @@ renderHistory = function(filter) {
    if (!text) return result;
  
    // 1) 提取金额
-   var amtMatch = text.match(/[￥￥]\s*([\d,]+\.?\d*)/) ||
+   var amtMatch = text.match(/[¥￥]\s*([\d,]+\.?\d*)/) ||
                  text.match(/([\d,]+\.?\d*)\s*元/) ||
                  text.match(/合计\s*([\d,]+\.?\d*)/) ||
                  text.match(/金额\s*([\d,]+\.?\d*)/) ||
@@ -1619,106 +1600,52 @@ renderHistory = function(filter) {
      result.accountType = 'work';
    }
  
- // 6) 提取商家名 + 生成备注
+  // 6) 提取商家名 + 生成备注
   // 先剔除支付渠道信息（银行、支付平台等不是商家）
   var cleanText = text;
-  cleanText = cleanText.replace(/[一-?]{2,6}(?:银行|银联)\s*/g, '');
-  cleanText = cleanText.replace(/(?:支付宝|微信支付|财付通|云闪付|网银|网捷贷|信用贷)\s*/g, '');
+  cleanText = cleanText.replace(/[一-鿿]{2,6}(?:银行|银联)\s*/g, '');
+  cleanText = cleanText.replace(/(?:支付宝|微信支付|财付通|云闪付|网银)\s*/g, '');
   cleanText = cleanText.replace(/(?:支付|付款|转账|扣款|收款|消费|交易|快捷|授权|购买)\s*/g, '');
   cleanText = cleanText.replace(/(?:尾号|卡号|账号|末四|账户|\d{4,})/g, '');
   var merchant = text.match(/((?:12306|中国铁路|高铁|铁路|畅行)[^\s，。,\.\d]{0,8})/) ||
-                 text.match(/((?:滴滴|T3出行|曹操|哈啰|青桔|美团单车)[^\s，。,\.\d]{0,6})/) ||
+                 text.match(/((?:滴滴|T3出行|曹操|哈喇|青橘|美团单车)[^\s，。,\.\d]{0,6})/) ||
                  text.match(/((?:饿了么|美团外卖|美团|肯德基|麦当劳|必胜客|星巴克|瑞幸|喜茶|蜜雪冰城|茶百道|CoCo|一点点)[^\s，。,\.\d]{0,8})/) ||
                  text.match(/((?:海底捞|小龙坎|蜀大侠|太二|西贝|眉州东坡|鼎泰丰|外婆家)[^\s，。,\.\d]{0,6})/) ||
                  text.match(/((?:淘宝|天猫|京东|拼多多|唯品会|得物|考拉|苏宁|网易严选|小米有品)[^\s，。,\.\d]{0,6})/) ||
-                 text.match(/((?:支付宝|余额宝|花呗|借呗|借呗|京东白条|京东金融)[^\s，。,\.\d]{0,6})/) ||
                  text.match(/((?:盒马|山姆|Costco|永辉|沃尔玛|家乐福|大润发|华润万家|物美|联华|罗森|全家|7-11|美宜佳)[^\s，。,\.\d]{0,8})/) ||
-                 text.match(/((?:星巴克|Tims|太平洋咖啡|MANNER|M Stand)[^\s，。,\.\d]{0,6})/) ||
                  text.match(/((?:小米|华为|苹果|OPPO|vivo|荣耀|三星)[^\s，。,\.\d]{0,6})/) ||
-                 text.match(/((?:顺丰|圆通|中通|韵达|申通|邮政|德邦|极兔)[^\s，。,\.\d]{0,6})/) ||
-                 text.match(/((?:腾讯|QQ音乐|网易云|爱奇艺|哔哩哔哩|bilibili|优酷|芒果TV|百度网盘|迅雷)[^\s，。,\.\d]{0,8})/) ||
+                 text.match(/((?:顺丰|园通|中通|韵达|申通|邮政|德邦|极兔)[^\s，。,\.\d]{0,6})/) ||
+                 text.match(/((?:腾讯|QQ音乐|网易云|爱奇艺|哔哩哔哩|bilibili|优酷|芒果TV|百度网盘)[^\s，。,\.\d]{0,8})/) ||
                  text.match(/((?:招商|中信|浦发|民生|兴业|光大|平安|华夏|广发|北京银行|上海银行)[^\s，。,\.\d]{0,6})/) ||
-                 cleanText.match(/([一-?A-Za-z]{2,12}(?:超市|便利店|店|馆|餐厅|食堂|酒店|宾馆|商城|广场))/);
- if (merchant) {
-    var merchantName = merchant[1] || merchant[0];
-     var item = text.match(/(?:买了|点了|消费了|订了|下单|选购|入手|购买|充值|缴费)([一-?A-Za-z0-9]{1,20})/);
+                 cleanText.match(/([一-鿿A-Za-z]{2,12}(?:超市|便利店|店|馆|餐厅|食堂|酒店|宾馆|商城|广场))/);
+
+  if (merchant) {
+     var merchantName = merchant[1] || merchant[0];
+     var item = text.match(/(?:买了|点了|消费了|订了|下单|选购|入手|购买|充值|缴费)([一-鿿A-Za-z0-9]{1,20})/);
      if (item) {
        result.note = merchantName + ' - ' + item[1];
      } else {
        result.note = merchantName;
      }
    } else {
-     var fallback = text.replace(/[￥￥\d,\.\s\-\(\)（）【】\[\]{}:：%#\/]/g, '');
+     var fallback = text.replace(/[¥￥\d,\.\s\-\(\)（）【】\[\]{}:：%#\/]/g, '');
      fallback = fallback.replace(/(?:银行|支付|付款|转账|扣款|消费|快捷|授权|尾号|卡号|账户|交易|金额|人民币|合计|小计|余额|可用|积分|积分兑换|已用|免费|已付|完成)/g, '');
      result.note = fallback.replace(/^[，。、、\s]+|[，。、,\s]+$/g, '').substring(0, 30);
+   }
+
+     var item = text.match(/(?:买了|点了|消费了|订了|下单|选购|入手|购买)([一-鿿A-Za-z0-9]{1,20})/);
+     if (item) {
+       result.note = merchantName + ' - ' + item[1];
+     } else {
+       result.note = merchantName;
+     }
+   } else {
+     result.note = text.replace(/[¥￥\d,\.\s\-\(\)（）【】\[\]{}:：]/g, '').substring(0, 30);
    }
  
   return result;
 }
 
-// ── AI 增强识别配置 ──
-var DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
-
-function getAiEnabled() {
-  return localStorage.getItem('ai_enhance_enabled') !== 'false';
-}
-function setAiEnabled(val) {
-  localStorage.setItem('ai_enhance_enabled', val ? 'true' : 'false');
-  updateApiKeyItem();
-}
-function getApiKey() { return localStorage.getItem('deepseek_api_key') || ''; }
-function configureApiKey() {
-  var k = getApiKey();
-  var key = prompt('DeepSeek API Key（sk- 开头）', k);
-  if (key === null) return;
-  key = key.trim();
-  if (key && !key.startsWith('sk-')) { showToast('格式不对，需 sk- 开头'); return; }
-  if (key) { localStorage.setItem('deepseek_api_key', key); showToast('Key 已保存'); }
-  else { localStorage.removeItem('deepseek_api_key'); showToast('Key 已清除'); }
-  updateApiKeyStatus();
-}
-function updateApiKeyStatus() {
-  var el = document.getElementById('apiKeyStatus');
-  if (el) el.textContent = getApiKey() ? '已设置 ✓' : '未设置';
-}
-function updateAiToggle() {
-  var el = document.getElementById('aiToggle');
-  if (el) el.checked = getAiEnabled();
-  updateApiKeyItem();
-}
-function updateApiKeyItem() {
-  var el = document.getElementById('apiKeyItem');
-  if (el) el.style.display = getAiEnabled() ? '' : 'none';
-}
-
-async function callDeepSeekParse(text) {
-  var apiKey = getApiKey();
-  if (!apiKey) return { error: '未配置 API Key' };
-  var prompt = '你是一个专业的智能记账助手，请分析OCR文字提取交易信息。\n\n【重要规则】银行名称（招商银行、农业银行等）只是付款卡，不是商家。支付平台（支付宝、微信支付等）只是支付方式，不是商家。尾号、卡号等是卡信息，不是商家。真正的商家应来自交易描述，如12306(铁路)、美团、京东、滴滴等。\n\n返回JSON：{"type":"expense/income","amount":数字,"category":"分类","note":"商家名 - 商品","date":"YYYY-MM-DD","accountType":"personal/work"}\n\nOCR文字：' + text;
-  try {
-    var resp = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [{role:'system',content:'你是记账助手。银行和支付平台不是商家。只返回JSON。'},{role:'user',content:prompt}],
-        temperature: 0.1, max_tokens: 500
-      })
-    });
-    if (!resp.ok) return { error: 'API请求失败 ('+resp.status+')' };
-    var data = await resp.json();
-    var content = data.choices[0].message.content.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/i,'');
-    var parsed = JSON.parse(content);
-    return {
-      type: parsed.type||'expense',
-      amount: parsed.amount||0,
-      category: parsed.category||'其他',
-      note: parsed.note||'',
-      date: parsed.date||new Date().toISOString().slice(0,10),
-      accountType: parsed.accountType||'personal'
-    };
-  } catch(e) { return { error: 'AI解析失败: '+e.message }; }
-}
 
 function handleUrlParams() {
   var p = new URLSearchParams(window.location.search);
@@ -1751,53 +1678,40 @@ function handleUrlParams() {
     return;
   }
 
-  // ocr=：快捷指令 OCR 识别（AI 优先，本地备选）
+  // ocr=：快捷指令 OCR 识别后调本地解析
   if (p.get('ocr')) {
-    (async function() {
-      var text = decodeURIComponent(p.get('ocr') || '');
-      if (!text) return;
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-      if (getAiEnabled() && getApiKey()) {
-        showToast('🤖 AI 识别中...');
-        var r = await callDeepSeekParse(text);
-        if (r && !r.error) {
-          var type = r.type || 'expense';
-          var category = r.category || getCategories(type)[0].name;
-          var acct = r.accountType || 'personal';
-          modalAccount = acct; openModal(type);
-          if (r.amount > 0) { document.getElementById("amountInput").value = r.amount; document.getElementById("saveBtn").disabled = false; }
-          document.getElementById("noteInput").value = r.note;
-          if (r.date) document.getElementById("dateInput").value = r.date;
-          selectedCategory = category; renderCategoryGrid();
-          showToast("\u2705 AI 识别完成，请确认后保存");
-          return;
-        }
-      }
-      var result = aiParseText(text);
-      var type = result.type || 'expense';
-      var category = result.category || getCategories(type)[0].name;
-      var aiAccount = result.accountType || 'personal';
-      modalAccount = aiAccount; openModal(type);
-      if (result.amount > 0) { document.getElementById("amountInput").value = result.amount; document.getElementById("saveBtn").disabled = false; }
-      document.getElementById("noteInput").value = result.note;
-      if (result.date) document.getElementById("dateInput").value = result.date;
-      selectedCategory = category; renderCategoryGrid();
-      showToast("\u2705 识别完成，请确认后保存");
-    })();
+    var text = decodeURIComponent(p.get('ocr') || '');
+    if (!text) return;
+ 
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+ 
+    var result = aiParseText(text);
+ 
+    var type = result.type || 'expense';
+    var category = result.category || getCategories(type)[0].name;
+    var aiAccount = result.accountType || 'personal';
+ 
+    modalAccount = aiAccount;
+    openModal(type);
+    if (result.amount > 0) {
+      document.getElementById('amountInput').value = result.amount;
+      document.getElementById('saveBtn').disabled = false;
+    }
+    document.getElementById('noteInput').value = result.note;
+    if (result.date) document.getElementById('dateInput').value = result.date;
+    selectedCategory = category;
+    renderCategoryGrid();
+    showToast('✅ 识别完成，请确认后保存');
     return;
   }
-
+}
 
 // ── Init ──
 document.getElementById('dateInput').value = getLocalDateStr();
 renderAll();
-updateAiToggle();
 handleUrlParams();
 </script>
 </body>
 </html>
-
-
-
