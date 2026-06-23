@@ -525,11 +525,6 @@ body {
       <button class="filter-chip active" data-filter="all">全部</button>
       <button class="filter-chip" data-filter="expense">支出</button>
       <button class="filter-chip" data-filter="income">收入</button>
-      <button class="filter-chip" data-filter="餐饮">🍽 餐饮</button>
-      <button class="filter-chip" data-filter="交通">🚗 交通</button>
-      <button class="filter-chip" data-filter="购物">🛍 购物</button>
-      <button class="filter-chip" data-filter="娱乐">🎮 娱乐</button>
-      <button class="filter-chip" data-filter="工资">💼 工资</button>
     </div>
     <div id="historyList" style="flex:1; overflow-y:auto;"></div>
   </div>
@@ -621,27 +616,56 @@ body {
 // ── Data ──
 const STORAGE_KEY = 'jizhang_records';
 const CATEGORIES = {
-  expense: [
-    { name: '餐饮', icon: '🍽', color: '#F56C6C' },
-    { name: '交通', icon: '🚗', color: '#E6A23C' },
-    { name: '购物', icon: '🛍', color: '#FF6B9D' },
-    { name: '娱乐', icon: '🎮', color: '#8B5CF6' },
-    { name: '住房', icon: '🏠', color: '#3B82F6' },
-    { name: '通讯', icon: '📱', color: '#06B6D4' },
-    { name: '医疗', icon: '💊', color: '#F472B6' },
-    { name: '教育', icon: '📚', color: '#10B981' },
-    { name: '日用', icon: '🧴', color: '#6366F1' },
-    { name: '其他', icon: '💸', color: '#9CA3AF' },
-  ],
-  income: [
-    { name: '工资', icon: '💼', color: '#67C23A' },
-    { name: '兼职', icon: '💻', color: '#409EFF' },
-    { name: '理财', icon: '📈', color: '#E6A23C' },
-    { name: '红包', icon: '🧧', color: '#F56C6C' },
-    { name: '退款', icon: '↩️', color: '#909399' },
-    { name: '其他', icon: '💰', color: '#67C23A' },
-  ]
+  personal: {
+    expense: [
+      { name: '餐饮', icon: '🍽', color: '#F56C6C' },
+      { name: '交通', icon: '🚗', color: '#E6A23C' },
+      { name: '购物', icon: '🛍', color: '#FF6B9D' },
+      { name: '娱乐', icon: '🎮', color: '#8B5CF6' },
+      { name: '住房', icon: '🏠', color: '#3B82F6' },
+      { name: '通讯', icon: '📱', color: '#06B6D4' },
+      { name: '医疗', icon: '💊', color: '#F472B6' },
+      { name: '教育', icon: '📚', color: '#10B981' },
+      { name: '超市', icon: '🏪', color: '#34D399' },
+      { name: '其他', icon: '💸', color: '#9CA3AF' },
+    ],
+    income: [
+      { name: '工资', icon: '💼', color: '#67C23A' },
+      { name: '兼职', icon: '💻', color: '#409EFF' },
+      { name: '理财', icon: '📈', color: '#E6A23C' },
+      { name: '红包', icon: '🧧', color: '#F56C6C' },
+      { name: '退款', icon: '↩️', color: '#909399' },
+      { name: '上月结余', icon: '📦', color: '#8B5CF6' },
+      { name: '其他', icon: '💰', color: '#67C23A' },
+    ]
+  },
+  work: {
+    expense: [
+      { name: '餐饮', icon: '🍽', color: '#F56C6C' },
+      { name: '飞机', icon: '✈️', color: '#3B82F6' },
+      { name: '高铁', icon: '🚄', color: '#F59E0B' },
+      { name: '网约车', icon: '🚕', color: '#10B981' },
+      { name: '购物', icon: '🛍', color: '#FF6B9D' },
+      { name: '娱乐', icon: '🎮', color: '#8B5CF6' },
+      { name: '酒店', icon: '🏨', color: '#FF6B9D' },
+      { name: '通讯', icon: '📱', color: '#06B6D4' },
+      { name: '医疗', icon: '💊', color: '#F472B6' },
+      { name: '其他', icon: '💸', color: '#9CA3AF' },
+    ],
+    income: [
+      { name: '报销', icon: '📋', color: '#67C23A' },
+      { name: '兼职', icon: '💻', color: '#409EFF' },
+      { name: '理财', icon: '📈', color: '#E6A23C' },
+      { name: '红包', icon: '🧧', color: '#F56C6C' },
+      { name: '退款', icon: '↩️', color: '#909399' },
+      { name: '其他', icon: '💰', color: '#67C23A' },
+    ]
+  }
 };
+
+function getCategories(type) {
+  return CATEGORIES[currentAccount][type];
+}
 
 let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 // Migrate old records without accountType
@@ -678,8 +702,30 @@ function acctRecords(acct) {
 }
 
 function catInfo(name, type) {
-  const list = CATEGORIES[type];
-  return list.find(c => c.name === name) || { icon: '❓', color: '#999' };
+  // Search current account first, then all accounts (for old records)
+  var list = getCategories(type);
+  var found = list.find(function(c) { return c.name === name; });
+  if (found) return found;
+  for (var acct in CATEGORIES) {
+    found = CATEGORIES[acct][type].find(function(c) { return c.name === name; });
+    if (found) return found;
+  }
+  return { name: name, icon: '📌', color: '#9CA3AF' };
+}
+
+// ── Render Filter Bar ──
+function renderFilterBar() {
+  var bar = document.getElementById('filterBar');
+  var chips = '<button class="filter-chip active" data-filter="all">全部</button><button class="filter-chip" data-filter="expense">支出</button><button class="filter-chip" data-filter="income">收入</button>';
+  // Add account-specific category chips (deduplicated)
+  var seen = {};
+  var allCats = getCategories('expense').concat(getCategories('income'));
+  allCats.forEach(function(c) {
+    if (seen[c.name]) return;
+    seen[c.name] = true;
+    chips += '<button class="filter-chip" data-filter="' + c.name + '">' + c.icon + ' ' + c.name + '</button>';
+  });
+  bar.innerHTML = chips;
 }
 
 // ── Render Transaction Item ──
@@ -720,13 +766,12 @@ function setCurrentAccount(acct) {
   renderAll();
   // Update history filter to match current account context
   currentFilter = 'all';
-  document.querySelectorAll('#filterBar .filter-chip').forEach(c => c.classList.remove('active'));
-  const allChip = document.querySelector('#filterBar .filter-chip[data-filter="all"]');
-  if (allChip) allChip.classList.add('active');
+  renderFilterBar();
 }
 
 // ── Render All ──
 function renderAll() {
+  renderFilterBar();
   renderHome();
   renderHistory();
   renderStats();
@@ -992,7 +1037,7 @@ function buildStatsBody(totalExpense, totalIncome, count, expenses, catType) {
 // ── Modal ──
 function openModal(type) {
   modalType = type;
-  selectedCategory = CATEGORIES[type][0].name;
+  selectedCategory = getCategories(type)[0].name;
   document.getElementById('modalOverlay').classList.add('show');
   document.getElementById('modalTitle').textContent = type === 'expense' ? '记支出' : '记收入';
   document.getElementById('typeExpense').classList.toggle('active', type === 'expense');
@@ -1011,7 +1056,7 @@ function openModal(type) {
 
 function setModalType(type) {
   modalType = type;
-  selectedCategory = CATEGORIES[type][0].name;
+  selectedCategory = getCategories(type)[0].name;
   document.getElementById('modalTitle').textContent = type === 'expense' ? '记支出' : '记收入';
   document.getElementById('typeExpense').classList.toggle('active', type === 'expense');
   document.getElementById('typeIncome').classList.toggle('active', type === 'income');
@@ -1020,7 +1065,7 @@ function setModalType(type) {
 
 function renderCategoryGrid() {
   const grid = document.getElementById('categoryGrid');
-  grid.innerHTML = CATEGORIES[modalType].map(c => `
+  grid.innerHTML = getCategories(modalType).map(c => `
     <div class="cat-item${selectedCategory === c.name ? ' selected' : ''}"
          onclick="selectCategory('${c.name}')">
       <div class="icon" style="background:${c.color}20;">${c.icon}</div>
@@ -1074,7 +1119,15 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   document.querySelector(`.tab-btn[data-tab="${name}"]`).classList.add('active');
-  if (name === 'history') renderHistory(currentFilter);
+  if (name === 'history') {
+    renderFilterBar();
+    var activeChip = document.querySelector('#filterBar .filter-chip[data-filter="' + currentFilter + '"]');
+    if (activeChip) {
+      document.querySelectorAll('#filterBar .filter-chip').forEach(function(c) { c.classList.remove('active'); });
+      activeChip.classList.add('active');
+    }
+    renderHistory(currentFilter);
+  }
   if (name === 'stats') renderStats();
 }
 
@@ -1272,7 +1325,7 @@ document.addEventListener('touchmove',function(e){
   var ct=e.target.closest('.swipe-container');if(!ct||!_sd[ct.dataset.id])return;
   var d=_sd[ct.dataset.id],dx=e.touches[0].clientX-d.sx,dy=e.touches[0].clientY-d.sy;
   if(Math.abs(dy)>Math.abs(dx)&&!d.moved)return;
-  if(Math.abs(dx)<5&&!d.moved)return;
+  if(Math.abs(dx)<15&&!d.moved)return;
   e.preventDefault();d.moved=true;
   var cc=ct.querySelector('.swipe-content');
   if(dx<0)cc.style.transform='translateX('+Math.max(dx,-144)+'px)';
@@ -1287,15 +1340,30 @@ document.addEventListener('touchend',function(e){
     var tx=cc.style.transform?parseFloat(cc.style.transform.replace('translateX(','').replace('px)','')):0;
     document.querySelectorAll('.swipe-content.swiped').forEach(function(el){if(el!==cc)el.classList.remove('swiped');});
     cc.classList.toggle('swiped',tx<-72);cc.style.transform='';
+    // Mark that this was a swipe — prevents synthetic click from showing detail
+    ct.dataset.swipePrevent = '1';
   }else{
-    if(cc.classList.contains('swiped'))cc.classList.remove('swiped');
-    else showRecordDetail(parseInt(ct.dataset.id));
+    // Check if there was significant movement (scroll, diagonal swipe, etc.) — don't treat as tap
+    var dx = e.changedTouches[0].clientX - d.sx;
+    var dy = e.changedTouches[0].clientY - d.sy;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist <= 15) {
+      if(cc.classList.contains('swiped'))cc.classList.remove('swiped');
+      else showRecordDetail(parseInt(ct.dataset.id));
+    }
   }
   delete _sd[ct.dataset.id];
 });
+// Capture-phase click handler — prevents synthetic clicks after swipe
 document.addEventListener('click',function(e){
-  if(!e.target.closest('.swipe-container'))document.querySelectorAll('.swipe-content.swiped').forEach(function(el){el.classList.remove('swiped');});
-});
+  var ct=e.target.closest('.swipe-container');
+  if(ct&&ct.dataset.swipePrevent){
+    delete ct.dataset.swipePrevent;
+    e.stopPropagation();
+    return;
+  }
+  if(!ct)document.querySelectorAll('.swipe-content.swiped').forEach(function(el){el.classList.remove('swiped');});
+},true);
 
 
 var editingId = null;
