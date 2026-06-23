@@ -1600,11 +1600,12 @@ renderHistory = function(filter) {
      result.accountType = 'work';
    }
  
-   // 6) 提取商家名 + 生成备注
-   var merchant = text.match(/([一-鿿A-Za-z]{2,12}(?:超市|店|馆|餐厅|酒店|商城|广场|中心|银行|医院|诊所|药房|食堂))/) ||
-                  text.match(/((?:饿了么|美团|淘宝|京东|拼多多|滴滴|星巴克|肯德基|麦当劳|瑞幸|海底捞|盒马|山姆|永辉|沃尔玛|大润发)[^\s，。,\.\d]{0,8})/) ||
+  // 6) 提取商家名 + 生成备注
+   var merchant = text.match(/((?:12306|中国铁路)[^\s，。,\.\d]{0,6})/) ||
+                  text.match(/([一-鿿A-Za-z]{2,12}(?:超市|店|馆|餐厅|酒店|商城|广场|中心|医院|诊所|药房|食堂))/) ||
+                  text.match(/((?:饿了么|美团|淘宝|京东|拼多多|滴滴|星巴克|肯德基|麦当劳|瑞幸|海底捞|盒马|山姆|永辉|沃尔玛|大润发|华润万家)[^\s，。,\.\d]{0,8})/) ||
                   text.match(/[在于]\s*([一-鿿A-Za-z]{2,10})/);
-   if (merchant) {
+  if (merchant) {
      var merchantName = merchant[1] || merchant[0];
      var item = text.match(/(?:买了|点了|消费了|订了|下单|选购|入手|购买)([一-鿿A-Za-z0-9]{1,20})/);
      if (item) {
