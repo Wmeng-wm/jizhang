@@ -1493,36 +1493,119 @@ renderHistory = function(filter) {
 };
 
 // ── URL Scheme: 快捷指令 / Shortcuts 传参自动记账 ──
-function handleUrlParams() {
-  var p = new URLSearchParams(window.location.search);
-  if (p.get('action') !== 'add') return;
-  var amount = parseFloat(p.get('amount'));
-  if (!amount || amount <= 0) return;
-  var type = p.get('type') === 'income' ? 'income' : 'expense';
-  var category = p.get('category') || getCategories(type)[0].name;
-  var note = p.get('note') || '';
-  var acct = p.get('account') || currentAccount;
-  var dateVal = p.get('date') || getLocalDateStr();
+function aiParseText(text) {
+  var result = { amount: 0, category: null, note: '', type: 'expense' };
+  if (!text) return result;
 
-  // 如果指定了不同账户，先切换
-  if (acct && acct !== currentAccount) setCurrentAccount(acct);
+  // 1) 提取金额：找 ¥xxx、xx元、合计xx、数字+金额 等模式
+  var amtMatch = text.match(/[¥￥]\s*([\d,]+\.?\d*)/) ||
+                text.match(/([\d,]+\.?\d*)\s*元/) ||
+                text.match(/合计\s*([\d,]+\.?\d*)/) ||
+                text.match(/金额\s*([\d,]+\.?\d*)/) ||
+                text.match(/消费\s*([\d,]+\.?\d*)/) ||
+                text.match(/支付\s*([\d,]+\.?\d*)/) ||
+                text.match(/收入\s*([\d,]+\.?\d*)/) ||
+                text.match(/([\d]+\.\d{2})/);
+  if (amtMatch) result.amount = parseFloat(amtMatch[1].replace(/,/g, ''));
 
-  // 清理 URL 参数，防止刷新重复添加
-  if (window.history && window.history.replaceState) {
-    window.history.replaceState({}, document.title, window.location.pathname);
+  // 2) 判断收支类型
+  if (/工资|收入|报销|兼职|理财|退款|结余/.test(text)) result.type = 'income';
+
+  // 3) 关键词匹配分类
+  var catRules = [
+    { cat: '餐饮', keywords: ['餐饮','吃饭','午餐','晚餐','早餐','外卖','餐厅','食堂','美食',
+       '饿了么','美团','肯德基','麦当劳','星巴克','咖啡','奶茶','蛋糕','面包','饺子','火锅',
+       '烧烤','小龙虾','茶','饮料','零食','水果'] },
+    { cat: '交通', keywords: ['交通','打车','滴滴','加油','地铁','公交','高铁','机票','停车',
+       '出租车','出行','网约车','自行车','火车','飞机','燃油'] },
+    { cat: '购物', keywords: ['购物','淘宝','京东','拼多多','商场','衣服','鞋','包包','快递'] },
+    { cat: '超市', keywords: ['超市','永辉','沃尔玛','家乐福','便利店','日用品','生鲜'] },
+    { cat: '通讯', keywords: ['话费','充值','手机费','流量','宽带','通讯'] },
+    { cat: '医疗', keywords: ['医院','药店','诊所','看病','药','体检','医保'] },
+    { cat: '教育', keywords: ['教育','培训','课程','学费','学习','考试','书本','文具'] },
+    { cat: '信用卡', keywords: ['信用卡','还款','账单'] },
+    { cat: '保险', keywords: ['保险','保费','人寿'] },
+    { cat: '住房', keywords: ['住房','房租','物业','水电','燃气'] },
+    { cat: '娱乐', keywords: ['娱乐','电影','游戏','KTV','旅游','景点','门票'] },
+  ];
+  var matchCat = null, maxScore = 0;
+  catRules.forEach(function(rule) {
+    var score = 0;
+    rule.keywords.forEach(function(kw) {
+      if (text.indexOf(kw) >= 0) score++;
+    });
+    if (score > maxScore) { maxScore = score; matchCat = rule.cat; }
+  });
+  // 如果分类在当前账户的支出/收入中都找不到，用默认
+  if (matchCat) {
+    var cats = getCategories(result.type);
+    var found = cats.some(function(c) { return c.name === matchCat; });
+    result.category = found ? matchCat :
+      (result.type === 'income' ? getCategories('income')[0].name : cats[0].name);
   }
 
-  openModal(type);
-  document.getElementById('amountInput').value = amount;
-  document.getElementById('noteInput').value = note;
-  document.getElementById('dateInput').value = dateVal;
-  document.getElementById('saveBtn').disabled = false;
-  selectedCategory = category;
-  renderCategoryGrid();
-  setTimeout(function() { document.getElementById('amountInput').focus(); }, 100);
-  // 如果 autoSave=1 则直接保存
-  if (p.get('autoSave') === '1') {
-    setTimeout(saveRecord, 200);
+  // 4) 提取备注：取金额附近的一段文字，或商家名
+  var noteMatch = text.match(/([一-鿿]{2,10}(?:超市|店|馆|餐厅|酒店))/);
+  if (noteMatch) result.note = noteMatch[1];
+  else result.note = text.replace(/[¥￥\d,\.\s]/g, '').substring(0, 20);
+
+  return result;
+}
+
+function handleUrlParams() {
+  var p = new URLSearchParams(window.location.search);
+  if (p.get('action') === 'add') {
+    var amount = parseFloat(p.get('amount'));
+    if (!amount || amount <= 0) return;
+    var type = p.get('type') === 'income' ? 'income' : 'expense';
+    var category = p.get('category') || getCategories(type)[0].name;
+    var note = p.get('note') || '';
+    var acct = p.get('account') || currentAccount;
+    var dateVal = p.get('date') || getLocalDateStr();
+
+    if (acct && acct !== currentAccount) setCurrentAccount(acct);
+
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    openModal(type);
+    document.getElementById('amountInput').value = amount;
+    document.getElementById('noteInput').value = note;
+    document.getElementById('dateInput').value = dateVal;
+    document.getElementById('saveBtn').disabled = false;
+    selectedCategory = category;
+    renderCategoryGrid();
+    setTimeout(function() { document.getElementById('amountInput').focus(); }, 100);
+    if (p.get('autoSave') === '1') {
+      setTimeout(saveRecord, 200);
+    }
+    return;
+  }
+
+  // action=ai：快捷指令 OCR 识别后自动填入
+  if (p.get('action') === 'ai') {
+    var text = p.get('text') || '';
+    if (!text) return;
+
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    var ai = aiParseText(decodeURIComponent(text));
+    var type = ai.type;
+    var category = ai.category || getCategories(type)[0].name;
+
+    openModal(type);
+    if (ai.amount > 0) {
+      document.getElementById('amountInput').value = ai.amount;
+      document.getElementById('saveBtn').disabled = false;
+    }
+    document.getElementById('noteInput').value = ai.note;
+    selectedCategory = category;
+    renderCategoryGrid();
+    showToast('AI 已识别，请确认后保存');
+    return;
   }
 }
 
