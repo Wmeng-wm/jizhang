@@ -593,10 +593,13 @@ body {
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
     <div class="modal-title" id="modalTitle">记支出</div>
-    <div class="modal-acct-hint" id="modalAcctHint"></div>
-    <div class="type-toggle">
+    <div class="type-toggle" style="margin-bottom:8px;">
       <button id="typeExpense" class="active" onclick="setModalType('expense')">支出</button>
       <button id="typeIncome" onclick="setModalType('income')">收入</button>
+    </div>
+    <div class="type-toggle" id="modalAcctToggle" style="margin-bottom:20px;">
+      <button data-acct="personal" class="active" onclick="setModalAccount('personal')">👤 个人</button>
+      <button data-acct="work" onclick="setModalAccount('work')">💼 工作</button>
     </div>
     <input type="number" class="amount-input" id="amountInput" placeholder="0.00" inputmode="decimal" step="0.01">
     <div class="category-grid" id="categoryGrid"></div>
@@ -685,6 +688,7 @@ if (migrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 let currentAccount = 'personal';
 let modalType = 'expense';
 let selectedCategory = null;
+let modalAccount = 'personal';
 
 // ── Helpers ──
 function formatMoney(n) { return '¥' + Number(n).toFixed(2); }
@@ -1043,7 +1047,8 @@ function buildStatsBody(totalExpense, totalIncome, count, expenses, catType) {
 // ── Modal ──
 function openModal(type) {
   modalType = type;
-  selectedCategory = getCategories(type)[0].name;
+  selectedCategory = CATEGORIES[modalAccount][type][0].name;
+  if (!modalAccount) modalAccount = currentAccount;
   document.getElementById('modalOverlay').classList.add('show');
   document.getElementById('modalTitle').textContent = type === 'expense' ? '记支出' : '记收入';
   document.getElementById('typeExpense').classList.toggle('active', type === 'expense');
@@ -1052,17 +1057,27 @@ function openModal(type) {
   document.getElementById('noteInput').value = '';
   document.getElementById('dateInput').value = getLocalDateStr();
   document.getElementById('saveBtn').disabled = true;
-  const acctHint = document.getElementById('modalAcctHint');
-  const label = currentAccount === 'personal' ? '个人' : '工作';
-  const cls = currentAccount === 'personal' ? 'personal' : 'work';
-  acctHint.innerHTML = `记入 <span class="${cls}">${label}账户</span>`;
+  // Set modal account toggle
+  document.querySelectorAll('#modalAcctToggle button').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.acct === modalAccount);
+  });
   renderCategoryGrid();
   setTimeout(() => document.getElementById('amountInput').focus(), 300);
 }
 
+function setModalAccount(acct) {
+  modalAccount = acct;
+  document.querySelectorAll('#modalAcctToggle button').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.acct === acct);
+  });
+  // 切换账户后更新分类列表
+  selectedCategory = CATEGORIES[modalAccount][modalType][0].name;
+  renderCategoryGrid();
+}
+
 function setModalType(type) {
   modalType = type;
-  selectedCategory = getCategories(type)[0].name;
+  selectedCategory = CATEGORIES[modalAccount][type][0].name;
   document.getElementById('modalTitle').textContent = type === 'expense' ? '记支出' : '记收入';
   document.getElementById('typeExpense').classList.toggle('active', type === 'expense');
   document.getElementById('typeIncome').classList.toggle('active', type === 'income');
@@ -1071,7 +1086,8 @@ function setModalType(type) {
 
 function renderCategoryGrid() {
   const grid = document.getElementById('categoryGrid');
-  grid.innerHTML = getCategories(modalType).map(c => `
+  const cats = CATEGORIES[modalAccount] ? CATEGORIES[modalAccount][modalType] : getCategories(modalType);
+  grid.innerHTML = cats.map(c => `
     <div class="cat-item${selectedCategory === c.name ? ' selected' : ''}"
          onclick="selectCategory('${c.name}')">
       <div class="icon" style="background:${c.color}20;">${c.icon}</div>
@@ -1105,12 +1121,12 @@ function saveRecord() {
     amount: Math.round(amount * 100) / 100,
     note,
     date,
-    accountType: currentAccount,
+    accountType: modalAccount,
   });
   save();
   closeModal();
   renderAll();
-  showToast((currentAccount === 'personal' ? '个人 · ' : '工作 · ') + (modalType === 'expense' ? '已记录支出' : '已记录收入'));
+  showToast((modalAccount === 'personal' ? '个人 · ' : '工作 · ') + (modalType === 'expense' ? '已记录支出' : '已记录收入'));
 }
 
 // ── Input validation ──
@@ -1379,6 +1395,7 @@ function openModalForEdit(id) {
   if (!r) return;
   editingId = id;
   closeDetailModal();
+  modalAccount = r.accountType || 'personal';
   openModal(r.type);
   document.getElementById('amountInput').value = r.amount;
   document.getElementById('saveBtn').disabled = false;
@@ -1404,10 +1421,10 @@ saveRecord = function() {
     }
     editingId = null;
   } else {
-    records.push({ id: Date.now(), type: modalType, category: selectedCategory, amount: Math.round(amt * 100) / 100, note: note, date: date, accountType: currentAccount });
+    records.push({ id: Date.now(), type: modalType, category: selectedCategory, amount: Math.round(amt * 100) / 100, note: note, date: date, accountType: modalAccount });
   }
   save(); closeModal(); renderAll();
-  showToast((currentAccount === 'personal' ? '个人' : '工作') + ' · ' + (modalType === 'expense' ? '已保存' : '已保存'));
+  showToast((modalAccount === 'personal' ? '个人 · ' : '工作 · ') + (modalType === 'expense' ? '已保存' : '已保存'));
 };
 
 var origShowDetail = showRecordDetail;
@@ -1596,14 +1613,48 @@ async function callDeepSeekParse(text) {
     return { error: '请先在「我的」页面配置 DeepSeek API Key' };
   }
 
-  var prompt = '你是一个智能记账助手。从以下OCR识别文字中提取一笔消费或收入的完整信息。' +
-    '注意：文字可能来自购物小票、支付截图、转账记录等，金额可能有¥￥符号。' +
-    '请以JSON格式返回，不要加markdown代码块标记，直接返回JSON：\n' +
-    '{"type":"expense或income","amount":数字,"category":"分类","note":"简短备注","date":"YYYY-MM-DD（可推测当天）"}\n\n' +
-    '分类规则：\n' +
-    '- 支出可选：餐饮、交通、购物、超市、通讯、医疗、教育、信用卡、保险、其他\n' +
-    '- 收入可选：工资、兼职、理财、红包、退款、其他\n\n' +
-    'OCR文字：\n' + text;
+  var prompt = '你是一个专业的智能记账助手。请仔细分析以下OCR识别出的文字，提取完整的交易信息。\n\n' +
+    '文字可能来自：微信/支付宝支付截图、银行转账记录、购物小票、外卖订单、电商订单、打车行程单、\n' +
+    '信用卡账单、餐饮发票、火车票/机票行程单等。\n\n' +
+    '你需要做的是：\n' +
+    '1. **全面分析文字内容**，识别出这是一笔什么交易（买了什么、干什么用的）\n' +
+    '2. **精确提取金额**，注意¥￥符号，可能有合计、实付、金额等关键词\n' +
+    '3. **判断收支类型**：支出(expense)还是收入(income)\n' +
+    '4. **智能分类**：根据商品/服务内容判断最合适的分类\n' +
+    '5. **判断账户类型**：根据交易内容判断是个人(personal)还是工作(work)相关\n' +
+    '6. **提取日期**：优先使用文字中的日期（格式YYYY-MM-DD），找不到就用今天\n' +
+    '7. **写详细备注**：包含商家名+购买了什么商品/服务，越详细越好\n\n' +
+    '分类规则（支出）：\n' +
+    '- 餐饮：吃饭、外卖、咖啡奶茶、零食、餐厅、食堂、面包蛋糕等\n' +
+    '- 交通：打车、地铁公交、加油停车、高铁飞机、过路费等\n' +
+    '- 购物：衣服鞋包、日用品、网购、商场购物、化妆品、数码产品等\n' +
+    '- 超市：超市卖场、生鲜蔬果、便利店等\n' +
+    '- 通讯：话费充值、流量套餐、宽带费等\n' +
+    '- 医疗：医院看病、药店买药、体检、疫苗等\n' +
+    '- 教育：课程培训、书本、学习资料、考试报名等\n' +
+    '- 信用卡：信用卡还款\n' +
+    '- 保险：保险缴费、保费\n' +
+    '- 其他：不属于以上分类的支出\n\n' +
+    '分类规则（收入）：\n' +
+    '- 工资：工资、薪资、劳务费\n' +
+    '- 兼职：兼职收入、副业\n' +
+    '- 理财：理财收益、利息、基金\n' +
+    '- 红包：微信红包、转账、礼金\n' +
+    '- 退款：退款、退货\n' +
+    '- 其他：不属于以上分类的收入\n\n' +
+    '账户判断规则：\n' +
+    '- 工作(work)：高铁、飞机票、出差相关、酒店住宿、公务报销、办公用品、团建等\n' +
+    '- 个人(personal)：日常消费、餐饮购物、娱乐、个人生活相关\n\n' +
+    '请直接返回JSON格式，不要加markdown代码块或任何其他文字：\n' +
+    '{\n' +
+    '  "type": "expense或income",\n' +
+    '  "amount": 数字（纯数字，不要带符号）,\n' +
+    '  "category": "分类",\n' +
+    '  "note": "详细备注（商家+买了什么/干什么用）",\n' +
+    '  "date": "YYYY-MM-DD",\n' +
+    '  "accountType": "personal或work"\n' +
+    '}\n\n' +
+    'OCR识别的文字如下（请逐行分析，不要只看第一行）：\n' + text;
 
   try {
     var resp = await fetch(DEEPSEEK_API_URL, {
@@ -1615,11 +1666,11 @@ async function callDeepSeekParse(text) {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: '你是一个记账助手，从OCR文字中提取结构化交易数据。只返回JSON，不要加markdown格式。' },
+          { role: 'system', content: '你是一个专业的记账助手，善于从OCR文字中提取完整的交易信息。请仔细分析所有文字内容，包括商家名、商品明细、金额、日期等。只返回JSON，不要加markdown格式。' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.1,
-        max_tokens: 200
+        max_tokens: 500
       })
     });
 
@@ -1640,7 +1691,8 @@ async function callDeepSeekParse(text) {
       amount: parsed.amount || 0,
       category: parsed.category || '其他',
       note: parsed.note || '',
-      date: parsed.date || getLocalDateStr()
+      date: parsed.date || getLocalDateStr(),
+      accountType: parsed.accountType || 'personal'
     };
   } catch (e) {
     return { error: 'AI解析失败: ' + e.message };
@@ -1699,7 +1751,10 @@ function handleUrlParams() {
 
       var type = result.type || 'expense';
       var category = result.category || getCategories(type)[0].name;
+      var aiAccount = result.accountType || 'personal';
 
+      // Set modal account to AI-detected value
+      modalAccount = aiAccount;
       openModal(type);
       if (result.amount > 0) {
         document.getElementById('amountInput').value = result.amount;
