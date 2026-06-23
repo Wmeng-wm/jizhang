@@ -1600,21 +1600,38 @@ renderHistory = function(filter) {
      result.accountType = 'work';
    }
  
-  // 6) 提取商家名 + 生成备注
-   var merchant = text.match(/((?:12306|中国铁路)[^\s，。,\.\d]{0,6})/) ||
-                  text.match(/([一-鿿A-Za-z]{2,12}(?:超市|店|馆|餐厅|酒店|商城|广场|中心|医院|诊所|药房|食堂))/) ||
-                  text.match(/((?:饿了么|美团|淘宝|京东|拼多多|滴滴|星巴克|肯德基|麦当劳|瑞幸|海底捞|盒马|山姆|永辉|沃尔玛|大润发|华润万家)[^\s，。,\.\d]{0,8})/) ||
-                  text.match(/[在于]\s*([一-鿿A-Za-z]{2,10})/);
-  if (merchant) {
-     var merchantName = merchant[1] || merchant[0];
-     var item = text.match(/(?:买了|点了|消费了|订了|下单|选购|入手|购买)([一-鿿A-Za-z0-9]{1,20})/);
+ // 6) 提取商家名 + 生成备注
+  // 先剔除支付渠道信息（银行、支付平台等不是商家）
+  var cleanText = text;
+  cleanText = cleanText.replace(/[一-鿿]{2,6}(?:银行|银联)\s*/g, '');
+  cleanText = cleanText.replace(/(?:支付宝|微信支付|财付通|云闪付|网银|网捷贷|信用贷)\s*/g, '');
+  cleanText = cleanText.replace(/(?:支付|付款|转账|扣款|收款|消费|交易|快捷|授权|购买)\s*/g, '');
+  cleanText = cleanText.replace(/(?:尾号|卡号|账号|末四|账户|\d{4,})/g, '');
+  var merchant = text.match(/((?:12306|中国铁路|高铁|铁路|畅行)[^\s，。,\.\d]{0,8})/) ||
+                 text.match(/((?:滴滴|T3出行|曹操|哈啰|青桔|美团单车)[^\s，。,\.\d]{0,6})/) ||
+                 text.match(/((?:饿了么|美团外卖|美团|肯德基|麦当劳|必胜客|星巴克|瑞幸|喜茶|蜜雪冰城|茶百道|CoCo|一点点)[^\s，。,\.\d]{0,8})/) ||
+                 text.match(/((?:海底捞|小龙坎|蜀大侠|太二|西贝|眉州东坡|鼎泰丰|外婆家)[^\s，。,\.\d]{0,6})/) ||
+                 text.match(/((?:淘宝|天猫|京东|拼多多|唯品会|得物|考拉|苏宁|网易严选|小米有品)[^\s，。,\.\d]{0,6})/) ||
+                 text.match(/((?:支付宝|余额宝|花呗|借呗|借呗|京东白条|京东金融)[^\s，。,\.\d]{0,6})/) ||
+                 text.match(/((?:盒马|山姆|Costco|永辉|沃尔玛|家乐福|大润发|华润万家|物美|联华|罗森|全家|7-11|美宜佳)[^\s，。,\.\d]{0,8})/) ||
+                 text.match(/((?:星巴克|Tims|太平洋咖啡|MANNER|M Stand)[^\s，。,\.\d]{0,6})/) ||
+                 text.match(/((?:小米|华为|苹果|OPPO|vivo|荣耀|三星)[^\s，。,\.\d]{0,6})/) ||
+                 text.match(/((?:顺丰|圆通|中通|韵达|申通|邮政|德邦|极兔)[^\s，。,\.\d]{0,6})/) ||
+                 text.match(/((?:腾讯|QQ音乐|网易云|爱奇艺|哔哩哔哩|bilibili|优酷|芒果TV|百度网盘|迅雷)[^\s，。,\.\d]{0,8})/) ||
+                 text.match(/((?:招商|中信|浦发|民生|兴业|光大|平安|华夏|广发|北京银行|上海银行)[^\s，。,\.\d]{0,6})/) ||
+                 cleanText.match(/([一-鿿A-Za-z]{2,12}(?:超市|便利店|店|馆|餐厅|食堂|酒店|宾馆|商城|广场))/);
+ if (merchant) {
+    var merchantName = merchant[1] || merchant[0];
+     var item = text.match(/(?:买了|点了|消费了|订了|下单|选购|入手|购买|充值|缴费)([一-鿿A-Za-z0-9]{1,20})/);
      if (item) {
        result.note = merchantName + ' - ' + item[1];
      } else {
        result.note = merchantName;
      }
    } else {
-     result.note = text.replace(/[¥￥\d,\.\s\-\(\)（）【】\[\]{}:：]/g, '').substring(0, 30);
+     var fallback = text.replace(/[¥￥\d,\.\s\-\(\)（）【】\[\]{}:：%#\/]/g, '');
+     fallback = fallback.replace(/(?:银行|支付|付款|转账|扣款|消费|快捷|授权|尾号|卡号|账户|交易|金额|人民币|合计|小计|余额|可用|积分|积分兑换|已用|免费|已付|完成)/g, '');
+     result.note = fallback.replace(/^[，。、、\s]+|[，。、,\s]+$/g, '').substring(0, 30);
    }
  
   return result;
