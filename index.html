@@ -1492,9 +1492,44 @@ renderHistory = function(filter) {
   container.innerHTML = html; initSwipeItems();
 };
 
+// ── URL Scheme: 快捷指令 / Shortcuts 传参自动记账 ──
+function handleUrlParams() {
+  var p = new URLSearchParams(window.location.search);
+  if (p.get('action') !== 'add') return;
+  var amount = parseFloat(p.get('amount'));
+  if (!amount || amount <= 0) return;
+  var type = p.get('type') === 'income' ? 'income' : 'expense';
+  var category = p.get('category') || getCategories(type)[0].name;
+  var note = p.get('note') || '';
+  var acct = p.get('account') || currentAccount;
+  var dateVal = p.get('date') || getLocalDateStr();
+
+  // 如果指定了不同账户，先切换
+  if (acct && acct !== currentAccount) setCurrentAccount(acct);
+
+  // 清理 URL 参数，防止刷新重复添加
+  if (window.history && window.history.replaceState) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  openModal(type);
+  document.getElementById('amountInput').value = amount;
+  document.getElementById('noteInput').value = note;
+  document.getElementById('dateInput').value = dateVal;
+  document.getElementById('saveBtn').disabled = false;
+  selectedCategory = category;
+  renderCategoryGrid();
+  setTimeout(function() { document.getElementById('amountInput').focus(); }, 100);
+  // 如果 autoSave=1 则直接保存
+  if (p.get('autoSave') === '1') {
+    setTimeout(saveRecord, 200);
+  }
+}
+
 // ── Init ──
 document.getElementById('dateInput').value = getLocalDateStr();
 renderAll();
+handleUrlParams();
 </script>
 </body>
 </html>
