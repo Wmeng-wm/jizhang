@@ -539,23 +539,23 @@ body {
     <div class="settings-group">
       <div class="settings-item" onclick="exportAccount('personal')">
         <div class="left"><span class="icon">??</span><div>导出个人账单<span class="info">CSV · 可分享到微信/文件</span></div></div>
-        <div class="right">?</div>
+        <div class="right">›</div>
       </div>
       <div class="settings-item" onclick="exportAccount('work')">
         <div class="left"><span class="icon">??</span><div>导出工作账单<span class="info">CSV · 可分享到微信/文件</span></div></div>
-        <div class="right">?</div>
+        <div class="right">›</div>
       </div>
       <div class="settings-item" onclick="exportAccount('all')">
         <div class="left"><span class="icon">??</span><div>导出全部账单<span class="info">包含个人和工作的所有记录</span></div></div>
-        <div class="right">?</div>
+        <div class="right">›</div>
       </div>
       <div class="settings-item" onclick="exportBackup()">
         <div class="left"><span class="icon">💾</span><div>导出备份<span class="info">JSON 格式 · 迁移数据用</span></div></div>
-        <div class="right">?</div>
+        <div class="right">›</div>
       </div>
       <div class="settings-item" onclick="document.getElementById('backupInput').click()">
         <div class="left"><span class="icon">📥</span><div>导入备份<span class="info">替换当前数据为备份文件内容</span></div></div>
-        <div class="right">?</div>
+        <div class="right">›</div>
       </div>
       <input type="file" id="backupInput" accept=".json" style="display:none" onchange="importBackup(event)">
     </div>
@@ -572,11 +572,11 @@ body {
     <div class="settings-group">
      <div class="settings-item danger" onclick="clearAccountData()">
         <div class="left"><span class="icon">??</span>清除当前账户数据</div>
-        <div class="right">?</div>
+        <div class="right">›</div>
       </div>
       <div class="settings-item danger" onclick="clearAllData()">
         <div class="left"><span class="icon">??</span>清除所有数据</div>
-        <div class="right">?</div>
+        <div class="right">›</div>
       </div>
     </div>
     <div style="text-align:center; padding:20px; color:var(--text-light); font-size:12px;">
@@ -1798,5 +1798,6 @@ handleUrlParams();
 </script>
 </body>
 </html>
+
 
 
