@@ -1,1 +1,5 @@
 .superpowers/
+__pycache__/
+apply_features.py
+check.py
+fix_issues.py
