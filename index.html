@@ -560,12 +560,6 @@ body {
         <div class="right">›</div>
       </div>
     </div>
-    <div class="settings-group">
-      <div class="settings-item" onclick="configureApiKey()">
-        <div class="left"><span class="icon">🔑</span><div>DeepSeek API 配置<span class="info">AI 识别需要 API Key</span></div></div>
-        <div class="right" id="apiKeyStatus">未设置</div>
-      </div>
-    </div>
     <div style="text-align:center; padding:20px; color:var(--text-light); font-size:12px;">
       记账 · 数据仅存储在本地
     </div>
@@ -1515,189 +1509,116 @@ renderHistory = function(filter) {
   container.innerHTML = html; initSwipeItems();
 };
 
-// ── URL Scheme: 快捷指令 / Shortcuts 传参自动记账 ──
-function aiParseText(text) {
-  var result = { amount: 0, category: null, note: '', type: 'expense' };
-  if (!text) return result;
-
-  // 1) 提取金额：找 ¥xxx、xx元、合计xx、数字+金额 等模式
-  var amtMatch = text.match(/[¥￥]\s*([\d,]+\.?\d*)/) ||
-                text.match(/([\d,]+\.?\d*)\s*元/) ||
-                text.match(/合计\s*([\d,]+\.?\d*)/) ||
-                text.match(/金额\s*([\d,]+\.?\d*)/) ||
-                text.match(/消费\s*([\d,]+\.?\d*)/) ||
-                text.match(/支付\s*([\d,]+\.?\d*)/) ||
-                text.match(/收入\s*([\d,]+\.?\d*)/) ||
-                text.match(/([\d]+\.\d{2})/);
-  if (amtMatch) result.amount = parseFloat(amtMatch[1].replace(/,/g, ''));
-
-  // 2) 判断收支类型
-  if (/工资|收入|报销|兼职|理财|退款|结余/.test(text)) result.type = 'income';
-
-  // 3) 关键词匹配分类
-  var catRules = [
-    { cat: '餐饮', keywords: ['餐饮','吃饭','午餐','晚餐','早餐','外卖','餐厅','食堂','美食',
-       '饿了么','美团','肯德基','麦当劳','星巴克','咖啡','奶茶','蛋糕','面包','饺子','火锅',
-       '烧烤','小龙虾','茶','饮料','零食','水果'] },
-    { cat: '交通', keywords: ['交通','打车','滴滴','加油','地铁','公交','高铁','机票','停车',
-       '出租车','出行','网约车','自行车','火车','飞机','燃油'] },
-    { cat: '购物', keywords: ['购物','淘宝','京东','拼多多','商场','衣服','鞋','包包','快递'] },
-    { cat: '超市', keywords: ['超市','永辉','沃尔玛','家乐福','便利店','日用品','生鲜'] },
-    { cat: '通讯', keywords: ['话费','充值','手机费','流量','宽带','通讯'] },
-    { cat: '医疗', keywords: ['医院','药店','诊所','看病','药','体检','医保'] },
-    { cat: '教育', keywords: ['教育','培训','课程','学费','学习','考试','书本','文具'] },
-    { cat: '信用卡', keywords: ['信用卡','还款','账单'] },
-    { cat: '保险', keywords: ['保险','保费','人寿'] },
-    { cat: '住房', keywords: ['住房','房租','物业','水电','燃气'] },
-    { cat: '娱乐', keywords: ['娱乐','电影','游戏','KTV','旅游','景点','门票'] },
-  ];
-  var matchCat = null, maxScore = 0;
-  catRules.forEach(function(rule) {
-    var score = 0;
-    rule.keywords.forEach(function(kw) {
-      if (text.indexOf(kw) >= 0) score++;
-    });
-    if (score > maxScore) { maxScore = score; matchCat = rule.cat; }
-  });
-  // 如果分类在当前账户的支出/收入中都找不到，用默认
-  if (matchCat) {
-    var cats = getCategories(result.type);
-    var found = cats.some(function(c) { return c.name === matchCat; });
-    result.category = found ? matchCat :
-      (result.type === 'income' ? getCategories('income')[0].name : cats[0].name);
-  }
-
-  // 4) 提取备注：取金额附近的一段文字，或商家名
-  var noteMatch = text.match(/([一-鿿]{2,10}(?:超市|店|馆|餐厅|酒店))/);
-  if (noteMatch) result.note = noteMatch[1];
-  else result.note = text.replace(/[¥￥\d,\.\s]/g, '').substring(0, 20);
-
+ // ── URL Scheme: 快捷指令 / Shortcuts 传参自动记账 ──
+ function aiParseText(text) {
+   var result = { amount: 0, category: null, note: '', type: 'expense', date: null, accountType: 'personal' };
+   if (!text) return result;
+ 
+   // 1) 提取金额
+   var amtMatch = text.match(/[¥￥]\s*([\d,]+\.?\d*)/) ||
+                 text.match(/([\d,]+\.?\d*)\s*元/) ||
+                 text.match(/合计\s*([\d,]+\.?\d*)/) ||
+                 text.match(/金额\s*([\d,]+\.?\d*)/) ||
+                 text.match(/消费\s*([\d,]+\.?\d*)/) ||
+                 text.match(/支付\s*([\d,]+\.?\d*)/) ||
+                 text.match(/收入\s*([\d,]+\.?\d*)/) ||
+                 text.match(/实付\s*([\d,]+\.?\d*)/) ||
+                 text.match(/小计\s*([\d,]+\.?\d*)/) ||
+                 text.match(/总计\s*([\d,]+\.?\d*)/) ||
+                 text.match(/([\d]+\.\d{2})/);
+   if (amtMatch) result.amount = parseFloat(amtMatch[1].replace(/,/g, ''));
+ 
+   // 2) 提取日期
+   var dm;
+   dm = text.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+   if (!dm) dm = text.match(/(\d{4})年(\d{1,2})月(\d{1,2})日?/);
+   if (dm) {
+     result.date = dm[1] + '-' + dm[2].padStart(2, '0') + '-' + dm[3].padStart(2, '0');
+   } else {
+     dm = text.match(/(\d{1,2})月(\d{1,2})日/);
+     if (dm) {
+       var now = new Date();
+       result.date = now.getFullYear() + '-' + dm[1].padStart(2, '0') + '-' + dm[2].padStart(2, '0');
+     }
+   }
+ 
+   // 3) 判断收支类型
+   if (/工资|收入|报销|兼职|理财|退款|结余|收到|利息|奖金|返现|分红|劳务/.test(text)) result.type = 'income';
+ 
+   // 4) 关键词匹配分类（含位置权重）
+   var catRules = [
+     { cat: '餐饮', keywords: ['餐饮','吃饭','午餐','晚餐','早餐','外卖','餐厅','食堂','美食',
+        '饿了么','美团','肯德基','麦当劳','星巴克','咖啡','奶茶','蛋糕','面包','饺子','火锅',
+        '烧烤','小龙虾','茶','饮料','零食','水果','KFC','必胜客','汉堡','炸鸡','寿司','日料',
+        '麻辣烫','米线','面条','馄饨','下午茶','夜宵','烤串','串串','酸菜鱼',
+        '海底捞','瑞幸','喜茶','蜜雪冰城','甜品','冰淇淋','麻辣','凉皮','冒菜','烤鱼'] },
+     { cat: '交通', keywords: ['交通','打车','滴滴','加油','地铁','公交','高铁','机票','停车',
+        '出租车','出行','网约车','自行车','火车','飞机','燃油','过路费','高速','ETC','顺风车',
+        '哈啰','单车','轮渡','船票','长途','客运','巴士','动车'] },
+     { cat: '购物', keywords: ['购物','淘宝','京东','拼多多','商场','衣服','鞋','包包','快递',
+        '网购','天猫','唯品会','得物','闲鱼','转转','化妆品','护肤品','日用品','家居',
+        '内衣','外套','裤子','配饰','眼镜','手表','下单','购物车'] },
+     { cat: '超市', keywords: ['超市','永辉','沃尔玛','家乐福','便利店','生鲜','山姆',
+        'Costco','盒马','罗森','全家','7-11','联华','大润发','华润万家','物美'] },
+     { cat: '通讯', keywords: ['话费','充值','手机费','流量','宽带','通讯','月租','套餐','中国移动','中国联通','中国电信'] },
+     { cat: '医疗', keywords: ['医院','药店','诊所','看病','药','体检','医保','疫苗','挂号',
+        '牙科','中医','中药','处方','手术','住院','急诊','医疗费'] },
+     { cat: '教育', keywords: ['教育','培训','课程','学费','学习','考试','书本','文具',
+        '网课','辅导班','教材','资料费','报名','考研','考公','考证','图书'] },
+     { cat: '信用卡', keywords: ['信用卡','还款','账单','花呗','白条','信用'] },
+     { cat: '保险', keywords: ['保险','保费','人寿','车险','社保','养老'] },
+     { cat: '住房', keywords: ['住房','房租','物业','水电','燃气','房贷','装修','物业费',
+        '暖气','水费','电费','维修','家具'] },
+     { cat: '娱乐', keywords: ['娱乐','电影','游戏','KTV','旅游','景点','门票','视频会员',
+        '音乐','演唱会','游乐园','健身','运动','游泳','羽毛球','篮球','足球',
+        '密室','剧本杀','桌游','网吧','电竞','公园'] },
+     { cat: '人情', keywords: ['红包','礼金','随礼','份子钱','礼物','送礼','请客'] },
+     { cat: '宠物', keywords: ['宠物','猫粮','狗粮','兽医','宠物店','猫砂'] },
+   ];
+   var matchCat = null, maxScore = 0;
+   catRules.forEach(function(rule) {
+     var score = 0;
+     rule.keywords.forEach(function(kw) {
+       var idx = text.indexOf(kw);
+       if (idx >= 0) {
+         // 关键词出现越早得分越高
+         score += 1 + Math.max(0, Math.floor((text.length - idx) / text.length * 5));
+       }
+     });
+     if (score > maxScore) { maxScore = score; matchCat = rule.cat; }
+   });
+   if (matchCat) {
+     var cats = getCategories(result.type);
+     var found = cats.some(function(c) { return c.name === matchCat; });
+     result.category = found ? matchCat : cats[0].name;
+   } else {
+     result.category = getCategories(result.type)[0].name;
+   }
+ 
+   // 5) 判断账户类型（个人/工作）
+   if (/出差|报销|高铁|机票|酒店|住宿|公务|办公用品|团建|会议|商务|项目|差旅/.test(text)) {
+     result.accountType = 'work';
+   }
+ 
+   // 6) 提取商家名 + 生成备注
+   var merchant = text.match(/([一-鿿A-Za-z]{2,12}(?:超市|店|馆|餐厅|酒店|商城|广场|中心|银行|医院|诊所|药房|食堂))/) ||
+                  text.match(/((?:饿了么|美团|淘宝|京东|拼多多|滴滴|星巴克|肯德基|麦当劳|瑞幸|海底捞|盒马|山姆|永辉|沃尔玛|大润发)[^\s，。,\.\d]{0,8})/) ||
+                  text.match(/[在于]\s*([一-鿿A-Za-z]{2,10})/);
+   if (merchant) {
+     var merchantName = merchant[1] || merchant[0];
+     var item = text.match(/(?:买了|点了|消费了|订了|下单|选购|入手|购买)([一-鿿A-Za-z0-9]{1,20})/);
+     if (item) {
+       result.note = merchantName + ' - ' + item[1];
+     } else {
+       result.note = merchantName;
+     }
+   } else {
+     result.note = text.replace(/[¥￥\d,\.\s\-\(\)（）【】\[\]{}:：]/g, '').substring(0, 30);
+   }
+ 
   return result;
 }
 
-// ── DeepSeek AI 智能解析 ──
-var DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
-
-function getApiKey() {
-  return localStorage.getItem('deepseek_api_key') || '';
-}
-
-function configureApiKey() {
-  var currentKey = getApiKey();
-  var masked = currentKey ? currentKey.slice(0, 6) + '****************' : '';
-  var key = prompt('请输入 DeepSeek API Key\n（以 sk- 开头，不会上传到服务器，仅存在浏览器本地）', currentKey);
-  if (key === null) return;
-  key = key.trim();
-  if (key && !key.startsWith('sk-')) {
-    showToast('API Key 格式不正确，应以 sk- 开头');
-    return;
-  }
-  if (key) {
-    localStorage.setItem('deepseek_api_key', key);
-    showToast('API Key 已保存');
-  } else {
-    localStorage.removeItem('deepseek_api_key');
-    showToast('API Key 已清除');
-  }
-  updateApiKeyStatus();
-}
-
-function updateApiKeyStatus() {
-  var el = document.getElementById('apiKeyStatus');
-  if (el) el.textContent = getApiKey() ? '已设置 ✓' : '未设置';
-}
-
-async function callDeepSeekParse(text) {
-  var apiKey = getApiKey();
-  if (!apiKey) {
-    return { error: '请先在「我的」页面配置 DeepSeek API Key' };
-  }
-
-  var prompt = '你是一个专业的智能记账助手。请仔细分析以下OCR识别出的文字，提取完整的交易信息。\n\n' +
-    '文字可能来自：微信/支付宝支付截图、银行转账记录、购物小票、外卖订单、电商订单、打车行程单、\n' +
-    '信用卡账单、餐饮发票、火车票/机票行程单等。\n\n' +
-    '你需要做的是：\n' +
-    '1. **全面分析文字内容**，识别出这是一笔什么交易（买了什么、干什么用的）\n' +
-    '2. **精确提取金额**，注意¥￥符号，可能有合计、实付、金额等关键词\n' +
-    '3. **判断收支类型**：支出(expense)还是收入(income)\n' +
-    '4. **智能分类**：根据商品/服务内容判断最合适的分类\n' +
-    '5. **判断账户类型**：根据交易内容判断是个人(personal)还是工作(work)相关\n' +
-    '6. **提取日期**：优先使用文字中的日期（格式YYYY-MM-DD），找不到就用今天\n' +
-    '7. **写详细备注**：包含商家名+购买了什么商品/服务，越详细越好\n\n' +
-    '分类规则（支出）：\n' +
-    '- 餐饮：吃饭、外卖、咖啡奶茶、零食、餐厅、食堂、面包蛋糕等\n' +
-    '- 交通：打车、地铁公交、加油停车、高铁飞机、过路费等\n' +
-    '- 购物：衣服鞋包、日用品、网购、商场购物、化妆品、数码产品等\n' +
-    '- 超市：超市卖场、生鲜蔬果、便利店等\n' +
-    '- 通讯：话费充值、流量套餐、宽带费等\n' +
-    '- 医疗：医院看病、药店买药、体检、疫苗等\n' +
-    '- 教育：课程培训、书本、学习资料、考试报名等\n' +
-    '- 信用卡：信用卡还款\n' +
-    '- 保险：保险缴费、保费\n' +
-    '- 其他：不属于以上分类的支出\n\n' +
-    '分类规则（收入）：\n' +
-    '- 工资：工资、薪资、劳务费\n' +
-    '- 兼职：兼职收入、副业\n' +
-    '- 理财：理财收益、利息、基金\n' +
-    '- 红包：微信红包、转账、礼金\n' +
-    '- 退款：退款、退货\n' +
-    '- 其他：不属于以上分类的收入\n\n' +
-    '账户判断规则：\n' +
-    '- 工作(work)：高铁、飞机票、出差相关、酒店住宿、公务报销、办公用品、团建等\n' +
-    '- 个人(personal)：日常消费、餐饮购物、娱乐、个人生活相关\n\n' +
-    '请直接返回JSON格式，不要加markdown代码块或任何其他文字：\n' +
-    '{\n' +
-    '  "type": "expense或income",\n' +
-    '  "amount": 数字（纯数字，不要带符号）,\n' +
-    '  "category": "分类",\n' +
-    '  "note": "详细备注（商家+买了什么/干什么用）",\n' +
-    '  "date": "YYYY-MM-DD",\n' +
-    '  "accountType": "personal或work"\n' +
-    '}\n\n' +
-    'OCR识别的文字如下（请逐行分析，不要只看第一行）：\n' + text;
-
-  try {
-    var resp = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: '你是一个专业的记账助手，善于从OCR文字中提取完整的交易信息。请仔细分析所有文字内容，包括商家名、商品明细、金额、日期等。只返回JSON，不要加markdown格式。' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.1,
-        max_tokens: 500
-      })
-    });
-
-    if (!resp.ok) {
-      var errText = await resp.text();
-      return { error: 'API请求失败 (' + resp.status + '): ' + errText };
-    }
-
-    var data = await resp.json();
-    var content = data.choices[0].message.content.trim();
-
-    // 去掉可能的 markdown 代码块标记
-    content = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-    var parsed = JSON.parse(content);
-
-    return {
-      type: parsed.type || 'expense',
-      amount: parsed.amount || 0,
-      category: parsed.category || '其他',
-      note: parsed.note || '',
-      date: parsed.date || getLocalDateStr(),
-      accountType: parsed.accountType || 'personal'
-    };
-  } catch (e) {
-    return { error: 'AI解析失败: ' + e.message };
-  }
-}
 
 function handleUrlParams() {
   var p = new URLSearchParams(window.location.search);
@@ -1730,42 +1651,32 @@ function handleUrlParams() {
     return;
   }
 
-  // ocr=：快捷指令 OCR 识别后调 DeepSeek AI 解析
+  // ocr=：快捷指令 OCR 识别后调本地解析
   if (p.get('ocr')) {
-    (async function() {
-      var text = decodeURIComponent(p.get('ocr') || '');
-      if (!text) return;
-
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-
-      var toastEl = document.getElementById('toast');
-      showToast('🤔 AI 识别中...');
-
-      var result = await callDeepSeekParse(text);
-      if (result.error) {
-        showToast(result.error);
-        return;
-      }
-
-      var type = result.type || 'expense';
-      var category = result.category || getCategories(type)[0].name;
-      var aiAccount = result.accountType || 'personal';
-
-      // Set modal account to AI-detected value
-      modalAccount = aiAccount;
-      openModal(type);
-      if (result.amount > 0) {
-        document.getElementById('amountInput').value = result.amount;
-        document.getElementById('saveBtn').disabled = false;
-      }
-      document.getElementById('noteInput').value = result.note;
-      if (result.date) document.getElementById('dateInput').value = result.date;
-      selectedCategory = category;
-      renderCategoryGrid();
-      showToast('✅ AI 识别完成，请确认后保存');
-    })();
+    var text = decodeURIComponent(p.get('ocr') || '');
+    if (!text) return;
+ 
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+ 
+    var result = aiParseText(text);
+ 
+    var type = result.type || 'expense';
+    var category = result.category || getCategories(type)[0].name;
+    var aiAccount = result.accountType || 'personal';
+ 
+    modalAccount = aiAccount;
+    openModal(type);
+    if (result.amount > 0) {
+      document.getElementById('amountInput').value = result.amount;
+      document.getElementById('saveBtn').disabled = false;
+    }
+    document.getElementById('noteInput').value = result.note;
+    if (result.date) document.getElementById('dateInput').value = result.date;
+    selectedCategory = category;
+    renderCategoryGrid();
+    showToast('✅ 识别完成，请确认后保存');
     return;
   }
 }
@@ -1773,7 +1684,6 @@ function handleUrlParams() {
 // ── Init ──
 document.getElementById('dateInput').value = getLocalDateStr();
 renderAll();
-updateApiKeyStatus();
 handleUrlParams();
 </script>
 </body>
