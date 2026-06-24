@@ -960,6 +960,12 @@ function generateStats() {
   }
 
   document.getElementById('statsResult').innerHTML = html;
+  // 绘制饼图
+  if (totalExpense > 0) {
+    var catMap = {};
+    expenses.forEach(function(r) { catMap[r.category] = (catMap[r.category] || 0) + r.amount; });
+    drawDonutChart(catMap, totalExpense);
+  }
 }
 
 async function exportStatsResult(start, end) {
@@ -1054,7 +1060,63 @@ function buildStatsBody(totalExpense, totalIncome, count, expenses, catType) {
     html += `</div>`;
   }
   html += `</div>`;
+  // 支出分类饼图
+  if (sorted.length > 0 && totalExpense > 0) {
+    html += `
+    <div class="chart-container">
+      <div class="chart-title">支出占比</div>
+      <div style="text-align:center;padding:10px 0;">
+        <canvas id="pieChart" width="260" height="260" style="max-width:100%;"></canvas>
+      </div>
+    </div>`;
+  }
   return html;
+}
+
+function drawDonutChart(catMap, totalExpense) {
+  var canvas = document.getElementById('pieChart');
+  if (!canvas || totalExpense <= 0) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  var cx = w / 2, cy = h / 2, r = Math.min(cx, cy) - 20, ir = r * 0.55; // 内半径（环形）
+  ctx.clearRect(0, 0, w, h);
+  var entries = Object.entries(catMap).sort(function(a,b) { return b[1] - a[1]; });
+  if (entries.length === 0) return;
+  var colors = ['#F56C6C','#E6A23C','#409EFF','#67C23A','#8B5CF6','#FF6B9D','#06B6D4','#F472B6','#10B981','#9CA83F','#F97316','#14B8A6'];
+  var total = totalExpense;
+  var startAngle = -Math.PI / 2;
+  entries.forEach(function(e, i) {
+    var pct = e[1] / total;
+    var endAngle = startAngle + pct * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, startAngle, endAngle);
+    ctx.arc(cx, cy, ir, endAngle, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fill();
+    // 标签
+    if (pct >= 0.03) {
+      var mid = startAngle + pct * Math.PI;
+      var lx = cx + Math.cos(mid) * (r + 14);
+      var ly = cy + Math.sin(mid) * (r + 14);
+      ctx.fillStyle = '#333';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      var label = e[0] + ' ' + Math.round(pct * 100) + '%';
+      ctx.fillText(label, lx, ly);
+    }
+    startAngle = endAngle;
+  });
+  // 中心文字
+  ctx.fillStyle = '#303133';
+  ctx.font = 'bold 18px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('总支出', cx, cy - 10);
+  ctx.font = 'bold 16px -apple-system, sans-serif';
+  ctx.fillStyle = '#F56C6C';
+  ctx.fillText('¥' + totalExpense.toFixed(0), cx, cy + 14);
 }
 
 // ── Modal ──
@@ -1547,114 +1609,12 @@ renderHistory = function(filter) {
                  text.match(/([\d]+\.\d{2})/);
    if (amtMatch) result.amount = parseFloat(amtMatch[1].replace(/,/g, ''));
  
-   // 2) 提取日期
-   var dm;
-   dm = text.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-   if (!dm) dm = text.match(/(\d{4})年(\d{1,2})月(\d{1,2})日?/);
-   if (dm) {
-  // 使用代码内自带的 getLocalDateStr() 提取出安全的本地当前年份，防止时差导致日期错乱
-  var currentYear = getLocalDateStr().slice(0, 4); 
-  result.date = currentYear + '-' + dm[1].padStart(2, '0') + '-' + dm[2].padStart(2, '0');
-} else {
-     dm = text.match(/(\d{1,2})月(\d{1,2})日/);
-     if (dm) {
-       var now = new Date();
-       result.date = now.getFullYear() + '-' + dm[1].padStart(2, '0') + '-' + dm[2].padStart(2, '0');
-     }
-   }
- 
-   // 3) 判断收支类型
+   // 2) 判断收支类型 - 仅做基础提示，详细分类交给 DeepSeek
    if (/工资|收入|报销|兼职|理财|退款|结余|收到|利息|奖金|返现|分红|劳务/.test(text)) result.type = 'income';
- 
-   // 4) 关键词匹配分类（含位置权重）
-   var catRules = [
-     { cat: '餐饮', keywords: ['餐饮','吃饭','午餐','晚餐','早餐','外卖','餐厅','食堂','美食',
-        '饿了么','美团','肯德基','麦当劳','星巴克','咖啡','奶茶','蛋糕','面包','饺子','火锅',
-        '烧烤','小龙虾','茶','饮料','零食','水果','KFC','必胜客','汉堡','炸鸡','寿司','日料',
-        '麻辣烫','米线','面条','馄饨','下午茶','夜宵','烤串','串串','酸菜鱼',
-        '海底捞','瑞幸','喜茶','蜜雪冰城','甜品','冰淇淋','麻辣','凉皮','冒菜','烤鱼'] },
-     { cat: '交通', keywords: ['交通','打车','滴滴','加油','地铁','公交','高铁','机票','停车',
-        '出租车','出行','网约车','自行车','火车','飞机','燃油','过路费','高速','ETC','顺风车',
-        '哈啰','单车','轮渡','船票','长途','客运','巴士','动车'] },
-     { cat: '购物', keywords: ['购物','淘宝','京东','拼多多','商场','衣服','鞋','包包','快递',
-        '网购','天猫','唯品会','得物','闲鱼','转转','化妆品','护肤品','日用品','家居',
-        '内衣','外套','裤子','配饰','眼镜','手表','下单','购物车'] },
-     { cat: '超市', keywords: ['超市','永辉','沃尔玛','家乐福','便利店','生鲜','山姆',
-        'Costco','盒马','罗森','全家','7-11','联华','大润发','华润万家','物美'] },
-     { cat: '通讯', keywords: ['话费','充值','手机费','流量','宽带','通讯','月租','套餐','中国移动','中国联通','中国电信'] },
-     { cat: '医疗', keywords: ['医院','药店','诊所','看病','药','体检','医保','疫苗','挂号',
-        '牙科','中医','中药','处方','手术','住院','急诊','医疗费'] },
-     { cat: '教育', keywords: ['教育','培训','课程','学费','学习','考试','书本','文具',
-        '网课','辅导班','教材','资料费','报名','考研','考公','考证','图书'] },
-     { cat: '信用卡', keywords: ['信用卡','还款','账单','花呗','白条','信用'] },
-     { cat: '保险', keywords: ['保险','保费','人寿','车险','社保','养老'] },
-     { cat: '住房', keywords: ['住房','房租','物业','水电','燃气','房贷','装修','物业费',
-        '暖气','水费','电费','维修','家具'] },
-     { cat: '娱乐', keywords: ['娱乐','电影','游戏','KTV','旅游','景点','门票','视频会员',
-        '音乐','演唱会','游乐园','健身','运动','游泳','羽毛球','篮球','足球',
-        '密室','剧本杀','桌游','网吧','电竞','公园'] },
-     { cat: '人情', keywords: ['红包','礼金','随礼','份子钱','礼物','送礼','请客'] },
-     { cat: '宠物', keywords: ['宠物','猫粮','狗粮','兽医','宠物店','猫砂'] },
-   ];
-   var matchCat = null, maxScore = 0;
-   catRules.forEach(function(rule) {
-     var score = 0;
-     rule.keywords.forEach(function(kw) {
-       var idx = text.indexOf(kw);
-       if (idx >= 0) {
-         // 关键词出现越早得分越高
-         score += 1 + Math.max(0, Math.floor((text.length - idx) / text.length * 5));
-       }
-     });
-     if (score > maxScore) { maxScore = score; matchCat = rule.cat; }
-   });
-   if (matchCat) {
-     var cats = getCategories(result.type);
-     var found = cats.some(function(c) { return c.name === matchCat; });
-     result.category = found ? matchCat : cats[0].name;
-   } else {
-     result.category = getCategories(result.type)[0].name;
-   }
- 
-   // 5) 判断账户类型（个人/工作）
-   if (/出差|报销|高铁|机票|酒店|住宿|公务|办公用品|团建|会议|商务|项目|差旅/.test(text)) {
-     result.accountType = 'work';
-   }
- 
-  // 6) 提取商家名 + 生成备注
-  // 先剔除支付渠道信息（银行、支付平台等不是商家）
-  var cleanText = text;
-  cleanText = cleanText.replace(/[一-鿿]{2,6}(?:银行|银联)\s*/g, '');
-  cleanText = cleanText.replace(/(?:支付宝|微信支付|财付通|云闪付|网银)\s*/g, '');
-  cleanText = cleanText.replace(/(?:支付|付款|转账|扣款|收款|消费|交易|快捷|授权|购买)\s*/g, '');
-  cleanText = cleanText.replace(/(?:尾号|卡号|账号|末四|账户|\d{4,})/g, '');
-  var merchant = text.match(/((?:12306|中国铁路|高铁|铁路|畅行)[^\s，。,\.\d]{0,8})/) ||
-                 text.match(/((?:滴滴|T3出行|曹操|哈喇|青橘|美团单车)[^\s，。,\.\d]{0,6})/) ||
-                 text.match(/((?:饿了么|美团外卖|美团|肯德基|麦当劳|必胜客|星巴克|瑞幸|喜茶|蜜雪冰城|茶百道|CoCo|一点点)[^\s，。,\.\d]{0,8})/) ||
-                 text.match(/((?:海底捞|小龙坎|蜀大侠|太二|西贝|眉州东坡|鼎泰丰|外婆家)[^\s，。,\.\d]{0,6})/) ||
-                 text.match(/((?:淘宝|天猫|京东|拼多多|唯品会|得物|考拉|苏宁|网易严选|小米有品)[^\s，。,\.\d]{0,6})/) ||
-                 text.match(/((?:盒马|山姆|Costco|永辉|沃尔玛|家乐福|大润发|华润万家|物美|联华|罗森|全家|7-11|美宜佳)[^\s，。,\.\d]{0,8})/) ||
-                 text.match(/((?:小米|华为|苹果|OPPO|vivo|荣耀|三星)[^\s，。,\.\d]{0,6})/) ||
-                 text.match(/((?:顺丰|园通|中通|韵达|申通|邮政|德邦|极兔)[^\s，。,\.\d]{0,6})/) ||
-                 text.match(/((?:腾讯|QQ音乐|网易云|爱奇艺|哔哩哔哩|bilibili|优酷|芒果TV|百度网盘)[^\s，。,\.\d]{0,8})/) ||
-                 text.match(/((?:招商|中信|浦发|民生|兴业|光大|平安|华夏|广发|北京银行|上海银行)[^\s，。,\.\d]{0,6})/) ||
-                 cleanText.match(/([一-鿿A-Za-z]{2,12}(?:超市|便利店|店|馆|餐厅|食堂|酒店|宾馆|商城|广场))/);
+   result.category = getCategories(result.type)[0].name;
+   result.note = '';
 
-  if (merchant) {
-     var merchantName = merchant[1] || merchant[0];
-     var item = text.match(/(?:买了|点了|消费了|订了|下单|选购|入手|购买|充值|缴费)([一-鿿A-Za-z0-9]{1,20})/);
-     if (item) {
-       result.note = merchantName + ' - ' + item[1];
-     } else {
-       result.note = merchantName;
-     }
-   } else {
-     var fallback = text.replace(/[¥￥\d,\.\s\-\(\)（）【】\[\]{}:：%#\/]/g, '');
-     fallback = fallback.replace(/(?:银行|支付|付款|转账|扣款|消费|快捷|授权|尾号|卡号|账户|交易|金额|人民币|合计|小计|余额|可用|积分|积分兑换|已用|免费|已付|完成)/g, '');
-     result.note = fallback.replace(/^[，。、、\s]+|[，。、,\s]+$/g, '').substring(0, 30);
-   }
- 
-  return result;
+   return result;
 }
 
 // ── AI 增强识别配置 ──
@@ -1695,7 +1655,7 @@ function updateApiKeyItem() {
 async function callDeepSeekParse(text) {
   var apiKey = getApiKey();
   if (!apiKey) return { error: '未配置 API Key' };
-  var prompt = '你是一个专业的智能记账助手，请分析OCR文字提取交易信息。\n\n【重要规则】银行名称（招商银行、农业银行等）只是付款卡，不是商家。支付平台（支付宝、微信支付等）只是支付方式，不是商家。真正的商家应来自交易描述，如12306(铁路)、美团、京东、滴滴等。\n\n返回JSON：{"type":"expense/income","amount":数字,"category":"分类","note":"商家名 - 商品","date":"YYYY-MM-DD","accountType":"personal/work"}\n\nOCR文字：' + text;
+  var prompt = '你是一个专业的智能记账助手，请分析OCR文字提取交易信息。\n\n【核心规则】\n1. 金额：从文字中提取实际交易金额\n2. 日期：不要从OCR文字中提取日期，始终使用当前日期\n3. 分类：根据交易内容判断分类（餐饮/交通/购物/超市/通讯/医疗/教育/信用卡/保险/住房/娱乐/人情/宠物/其他）\n4. 账户类型：如果商家是"滴滴出行"、"T3出行"、"曹操出行"、"12306"、"高铁"、"机票"等出行相关，或涉及"出差"、"报销"、"公务"、"公司"、"项目"、"商务"等，accountType设为"work"；其他个人消费设为"personal"\n5. 备注：准确识别真正的商家（银行名称只是付款卡，支付宝/微信只是支付方式，不是商家），备注格式为"商家名 - 商品/服务"（如"滴滴出行 - 快车"、"星巴克 - 拿铁"）\n6. 收支类型：支出为expense，工资/理财/退款等为income\n\n只返回JSON。JSON格式：{"type":"expense/income","amount":数字,"category":"分类","note":"商家名 - 商品","accountType":"personal/work"}\n\nOCR文字：' + text;
   try {
     var resp = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
@@ -1711,13 +1671,12 @@ async function callDeepSeekParse(text) {
     var c = data.choices[0].message.content.trim().replace(/^\\(?:json)?\s*/i,'').replace(/\s*\\$/i,'');
     var parsed = JSON.parse(c);
     return {
-  type: parsed.type||'expense',
-  amount: parsed.amount||0,
-  category: parsed.category||'其他',
-  note: parsed.note||'',
-  date: parsed.date||getLocalDateStr(), // 统一使用本地时区的当前日期进行兜底
-  accountType: parsed.accountType||'personal'
-};
+      type: parsed.type||'expense',
+      amount: parsed.amount||0,
+      category: parsed.category||'其他',
+      note: parsed.note||'',
+      accountType: parsed.accountType||'personal'
+    };
   } catch(e) { return { error: 'AI解析失败: '+e.message }; }
 }
 
@@ -1770,7 +1729,6 @@ function handleUrlParams() {
           modalAccount = ac; openModal(type);
           if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
           document.getElementById('noteInput').value = r.note;
-          if (r.date) document.getElementById('dateInput').value = r.date;
           selectedCategory = cat; renderCategoryGrid();
           showToast('✅ AI 识别完成，请确认后保存');
           return;
@@ -1783,7 +1741,6 @@ function handleUrlParams() {
       modalAccount = ac; openModal(type);
       if (result.amount > 0) { document.getElementById('amountInput').value = result.amount; document.getElementById('saveBtn').disabled = false; }
       document.getElementById('noteInput').value = result.note;
-      if (result.date) document.getElementById('dateInput').value = result.date;
       selectedCategory = cat; renderCategoryGrid();
       showToast('✅ 识别完成，请确认后保存');
     })();
