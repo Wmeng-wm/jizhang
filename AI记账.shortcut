@@ -13,8 +13,6 @@
             <dict>
                 <key>UUID</key>
                 <string>A0000000-0000-0000-0000-000000000001</string>
-                <key>WFGetLatestPhotosCount</key>
-                <integer>1</integer>
             </dict>
         </dict>
         <dict>
