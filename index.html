@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -1552,8 +1552,10 @@ renderHistory = function(filter) {
    dm = text.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
    if (!dm) dm = text.match(/(\d{4})年(\d{1,2})月(\d{1,2})日?/);
    if (dm) {
-     result.date = dm[1] + '-' + dm[2].padStart(2, '0') + '-' + dm[3].padStart(2, '0');
-   } else {
+  // 使用代码内自带的 getLocalDateStr() 提取出安全的本地当前年份，防止时差导致日期错乱
+  var currentYear = getLocalDateStr().slice(0, 4); 
+  result.date = currentYear + '-' + dm[1].padStart(2, '0') + '-' + dm[2].padStart(2, '0');
+} else {
      dm = text.match(/(\d{1,2})月(\d{1,2})日/);
      if (dm) {
        var now = new Date();
@@ -1709,13 +1711,13 @@ async function callDeepSeekParse(text) {
     var c = data.choices[0].message.content.trim().replace(/^\\(?:json)?\s*/i,'').replace(/\s*\\$/i,'');
     var parsed = JSON.parse(c);
     return {
-      type: parsed.type||'expense',
-      amount: parsed.amount||0,
-      category: parsed.category||'其他',
-      note: parsed.note||'',
-      date: parsed.date||new Date().toISOString().slice(0,10),
-      accountType: parsed.accountType||'personal'
-    };
+  type: parsed.type||'expense',
+  amount: parsed.amount||0,
+  category: parsed.category||'其他',
+  note: parsed.note||'',
+  date: parsed.date||getLocalDateStr(), // 统一使用本地时区的当前日期进行兜底
+  accountType: parsed.accountType||'personal'
+};
   } catch(e) { return { error: 'AI解析失败: '+e.message }; }
 }
 
