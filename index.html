@@ -713,10 +713,10 @@ function getLocalDateStr() {
 }
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
 
-function showToast(msg) {
+function showToast(msg, ms) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
-  clearTimeout(t._tid); t._tid = setTimeout(() => t.classList.remove('show'), 1800);
+  clearTimeout(t._tid); t._tid = setTimeout(() => t.classList.remove('show'), ms || 1800);
 }
 
 // ── Account filtering ──
@@ -1656,19 +1656,32 @@ async function callDeepSeekParse(text) {
   var apiKey = getApiKey();
   if (!apiKey) return { error: '未配置 API Key' };
   var prompt = '你是一个专业的智能记账助手，请分析OCR文字提取交易信息。\n\n【核心规则】\n1. 金额：从文字中提取实际交易金额\n2. 日期：不要从OCR文字中提取日期，始终使用当前日期\n3. 分类（注意分类随账户类型变化）：\n   - 当 accountType = "work" 时，category 只能从以下选：餐饮/飞机/高铁/网约车/购物/娱乐/酒店/通讯/医疗/其他\n   - 当 accountType = "personal" 时，category 只能从以下选：餐饮/交通/购物/超市/通讯/医疗/教育/信用卡/保险/住房/娱乐/人情/宠物/其他\n   - 映射规则：滴滴/网约车→网约车，高铁/动车→高铁，飞机/机票→飞机，酒店/宾馆/住宿→酒店，加油/打车/地铁→交通（personal）\n4. 账户类型（严格执行）：\n   - accountType = "work" 的情况（工作账户，用于差旅报销）：\n     * 任何出行相关的交易：滴滴出行、T3出行、曹操出行、哈啰、花小猪、高德打车、首汽约车等网约车 → 同时设置 category="网约车"\n     * 12306、高铁、动车、火车、机票、飞机、航空公司 → 同时设置 category="高铁"或"飞机"\n     * 酒店、宾馆、住宿（任何与住店相关的消费）→ 同时设置 category="酒店"\n     * 涉及出差、报销、公务、公司、单位、项目、商务、会议、团建、办公用品\n   - accountType = "personal" 的情况（个人账户，日常消费）：\n     * 餐饮美食：餐厅、外卖、奶茶、咖啡、麦当劳、肯德基、星巴克、火锅、面包店等所有吃的东西 → category="餐饮"\n     * 购物消费：淘宝、京东、拼多多、抖音、商场、超市、便利店、衣服、日用品等 → category="购物"或"超市"\n     * 网约车/打车（非工作场景）→ category="交通"\n     * 生活服务：话费、水电、医疗、教育、娱乐、健身、电影 → 对应分类\n   记住：只有差旅出行类的才归work，其他所有日常消费一律归personal\n5. 备注：准确识别真正的商家（银行名称只是付款卡，支付宝/微信只是支付方式，不是商家），备注格式为"商家名 - 商品/服务"（如"滴滴出行 - 快车"、"星巴克 - 拿铁"、"饿了么 - 午餐"）\n6. 收支类型：支出为expense，工资/理财/退款/红包等为income\n\n只返回JSON。JSON格式：{"type":"expense/income","amount":数字,"category":"分类","note":"商家名 - 商品","accountType":"personal/work"}\n\nOCR文字：' + text;
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 25000);
   try {
     var resp = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
       headers: {'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+      signal: controller.signal,
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [{role:'system',content:'你是记账助手。银行和支付平台不是商家。只返回JSON。'},{role:'user',content:prompt}],
         temperature: 0.1, max_tokens: 500
       })
     });
-    if (!resp.ok) return { error: 'API请求失败 ('+resp.status+')' };
-    var data = await resp.json();
-    var c = data.choices[0].message.content.trim().replace(/^\\(?:json)?\s*/i,'').replace(/\s*\\$/i,'');
+    var raw = await resp.text();
+    if (!resp.ok) {
+      var msg = 'API请求失败 ('+resp.status+')';
+      try {
+        var errData = JSON.parse(raw);
+        if (errData && errData.error && errData.error.message) msg += ': '+errData.error.message;
+      } catch(_) {}
+      return { error: msg };
+    }
+    var data = JSON.parse(raw);
+    var content = data && data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+    if (!content) return { error: 'AI返回内容为空' };
+    var c = content.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
     var parsed = JSON.parse(c);
     return {
       type: parsed.type||'expense',
@@ -1677,7 +1690,14 @@ async function callDeepSeekParse(text) {
       note: parsed.note||'',
       accountType: parsed.accountType||'personal'
     };
-  } catch(e) { return { error: 'AI解析失败: '+e.message }; }
+  } catch(e) {
+    if (e && e.name === 'AbortError') return { error: 'AI请求超时，请检查网络后重试' };
+    var m = (e && e.message) || String(e);
+    if (/failed to fetch|network request failed|load failed|networkerror/i.test(m)) return { error: '网络连接失败，请检查网络或稍后重试' };
+    return { error: 'AI解析失败: '+m };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function handleUrlParams() {
@@ -1733,6 +1753,8 @@ function handleUrlParams() {
           showToast('✅ AI 识别完成，请确认后保存');
           return;
         }
+        var aiError = (r && r.error) ? r.error : 'AI解析失败';
+        showToast('⚠️ ' + aiError + '，改用本地识别', 4000);
       }
       var result = aiParseText(text);
       var type = result.type || 'expense';
@@ -1742,7 +1764,7 @@ function handleUrlParams() {
       if (result.amount > 0) { document.getElementById('amountInput').value = result.amount; document.getElementById('saveBtn').disabled = false; }
       document.getElementById('noteInput').value = result.note;
       selectedCategory = cat; renderCategoryGrid();
-      showToast('✅ 识别完成，请确认后保存');
+      showToast('✅ 本地识别完成，请确认后保存');
     })();
     return;
   }
