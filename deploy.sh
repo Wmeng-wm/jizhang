@@ -9,14 +9,26 @@
 # 用法：
 #   ./deploy.sh           # 只部署前端（写入 KV）
 #   ./deploy.sh --push    # 先提交并推送到 GitHub，再部署前端
+#
+# 注意：
+#   Cloudflare OAuth token 无法直接调用 KV REST API（返回 401），
+#   因此这里用 wrangler CLI 写入 KV（内部使用正确的认证方式）。
 # ============================================================
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ACCOUNT_ID="713638e5490a77cabcbedf64fd08244b"
 KV_NAMESPACE="1394f65053b14ed68cd79908be3a69f3"
 KV_KEY="v4_index"
-WRANGLER_CONFIG="/c/Users/王萌/AppData/Roaming/xdg.config/.wrangler/config/default.toml"
+# 优先使用本项目的 wrangler，其次找 BZgongyi 的（共享安装）
+WRANGLER=""
+if command -v wrangler >/dev/null 2>&1; then
+  WRANGLER="wrangler"
+elif [ -x "/d/项目/BZgongyi/node_modules/.bin/wrangler" ]; then
+  WRANGLER="/d/项目/BZgongyi/node_modules/.bin/wrangler"
+else
+  echo "❌ 未找到 wrangler。请先安装：npm i -g wrangler" >&2
+  exit 1
+fi
 
 # ---------- 1. 可选：git 提交推送 ----------
 if [[ "${1:-}" == "--push" ]]; then
@@ -26,30 +38,13 @@ if [[ "${1:-}" == "--push" ]]; then
   git push origin main
 fi
 
-# ---------- 2. 读取 Cloudflare Token ----------
-TOKEN=$(grep -oP '(?<=oauth_token = ")[^"]+' "$WRANGLER_CONFIG" | head -1)
-if [[ -z "$TOKEN" ]]; then
-  TOKEN=$(grep -oP '(?<=api_token = ")[^"]+' "$WRANGLER_CONFIG" | head -1)
-fi
-if [[ -z "$TOKEN" ]]; then
-  echo "❌ 无法从 wrangler 配置读取 token: $WRANGLER_CONFIG" >&2
-  exit 1
-fi
-
-# ---------- 3. 写入 KV ----------
+# ---------- 2. 写入 KV ----------
 echo "📦 部署前端到 Cloudflare KV ($KV_KEY) ..."
-RESP_FILE="$LOCALAPPDATA/Temp/cf_kv_deploy_resp.txt"
-HTTP_CODE=$(curl -s -o "$RESP_FILE" -w "%{http_code}" -X PUT \
-  "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE}/values/${KV_KEY}" \
-  -H "Authorization: Bearer $TOKEN" \
-  --data-binary @"D:/项目/jizhang/index.html") || true
+"$WRANGLER" kv key put "$KV_KEY" \
+  --namespace-id "$KV_NAMESPACE" \
+  --path "D:/项目/jizhang/index.html" \
+  --remote
 
-if [[ "$HTTP_CODE" == "200" ]]; then
-  SIZE=$(wc -c < "D:/项目/jizhang/index.html")
-  echo "✅ 部署成功！(HTTP $HTTP_CODE, $SIZE bytes)"
-  echo "🌐 https://ksjizhang.top/"
-else
-  echo "❌ 部署失败 (HTTP $HTTP_CODE)" >&2
-  cat "$RESP_FILE" 2>/dev/null | head -c 300 >&2 || true
-  exit 1
-fi
+SIZE=$(wc -c < "D:/项目/jizhang/index.html")
+echo "✅ 部署成功！($SIZE bytes)"
+echo "🌐 https://ksjizhang.top/"
