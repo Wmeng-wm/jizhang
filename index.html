@@ -956,16 +956,59 @@ function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); sy
 // ── 云端同步（通过 jizhang-api Worker + Cloudflare KV）──
 var API_BASE = '/api';
 var _syncing = false;
-// 设备唯一 ID：首次访问自动生成后【永久固定，不可更改】
+
+// 设备指纹：同一台设备的任何入口（浏览器/PWA快捷方式）生成相同 ID
+function deviceFingerprint(){
+  var parts = [
+    navigator.userAgent || '',
+    (screen.width || 0) + 'x' + (screen.height || 0),
+    navigator.language || '',
+    new Date().getTimezoneOffset() || 0,
+    navigator.platform || ''
+  ];
+  var s = parts.join('|');
+  var h = 0;
+  for (var i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
+  return 'f' + (h >>> 0).toString(36) + '_' + s.length.toString(36);
+}
+
+// 设备唯一 ID：基于设备指纹生成，同一设备所有入口一致，不同设备隔离
 // 数据隔离硬规则：每台设备的数据只存在自己的 ID 下，任何设备无法获取其他设备的数据
+var _fingerprint = deviceFingerprint();
 var _uid = localStorage.getItem('jz_uid');
+var _oldUid = null; // 旧随机 ID（迁移用）
+
 if (!_uid) {
-  _uid = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  _uid = _fingerprint;
+  try { localStorage.setItem('jz_uid', _uid); } catch(e) {}
+} else if (_uid.charAt(0) === 'u') {
+  // 旧版随机 ID → 迁移到设备指纹 ID（保留旧 ID 以便拉取旧数据后并入）
+  _oldUid = _uid;
+  _uid = _fingerprint;
   try { localStorage.setItem('jz_uid', _uid); } catch(e) {}
 }
 Object.defineProperty(window, '_uid', { writable: false, configurable: false, value: _uid });
 
 async function syncFromCloud(){
+  // 旧随机 ID 迁移：先拉取旧 ID 的云端数据合并进本地，再统一用指纹 ID
+  if (_oldUid && _oldUid !== _uid) {
+    try{
+      var oldResp = await fetch(API_BASE + '/records?uid=' + encodeURIComponent(_oldUid) + '&_=' + Date.now());
+      if (oldResp.ok) {
+        var oldData = await oldResp.json();
+        if (oldData.ok && oldData.records && oldData.records.length > 0) {
+          var byId = {};
+          records.forEach(function(r){ byId[r.id] = r; });
+          oldData.records.forEach(function(r){ if(!byId[r.id]) byId[r.id] = r; });
+          records = Object.values(byId).sort(function(a,b){ return new Date(a.date) - new Date(b.date) || a.id - b.id; });
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        }
+      }
+    }catch(e){
+      console.warn('旧 ID 数据迁移拉取失败', e);
+    }
+    _oldUid = null;
+  }
   try{
     var resp = await fetch(API_BASE + '/records?uid=' + encodeURIComponent(_uid) + '&_=' + Date.now());
     if(!resp.ok) throw new Error('HTTP ' + resp.status);
