@@ -5,3 +5,4 @@ apply_features.py
 check.py
 fix_issues.py
 sw.js
+.wrangler/
