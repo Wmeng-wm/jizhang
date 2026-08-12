@@ -2135,16 +2135,11 @@ function handleUrlParams() {
 document.getElementById('dateInput').value = getLocalDateStr();
 (async function(){
   // 先拉取云端记录合并，再渲染（保证多端数据一致）
-  var before = records.length;
   await syncFromCloud();
   renderAll();
   updateAiToggle();
   updateSyncIdUI();
   handleUrlParams();
-  // 显示拉取结果（旧版同款提示）
-  if (records.length > 0) {
-    showToast('已加载 ' + records.length + ' 条记录');
-  }
 })();
 </script>
 </body>
