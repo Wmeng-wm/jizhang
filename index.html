@@ -289,6 +289,29 @@ body {
   padding: 12px 20px 8px;
 }
 
+/* 分类筛选汇总条 */
+.filter-summary {
+  display: flex; align-items: center; gap: 10px;
+  margin: 12px 16px 4px; padding: 12px 16px;
+  background: var(--card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
+}
+.filter-summary .fs-icon {
+  width: 36px; height: 36px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.6);
+  border: 0.5px solid rgba(255,255,255,0.8);
+  font-size: 19px; flex-shrink: 0;
+}
+.filter-summary .fs-info { flex: 1; min-width: 0; }
+.filter-summary .fs-name { font-size: 14px; font-weight: 600; }
+.filter-summary .fs-count { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.filter-summary .fs-total { font-size: 18px; font-weight: 700; flex-shrink: 0; }
+
 /* ── Statistics Page ── */
 .billing-banner {
   margin: 16px;
@@ -1302,12 +1325,33 @@ function renderHistory(filter) {
   }
   filtered.sort((a,b) => new Date(a.date) - new Date(b.date) || b.id - a.id);
 
+  // 分类筛选时显示汇总条：共 X 笔 · 合计 ¥Y
+  let summaryHtml = '';
+  if (f && f !== 'all') {
+    const isType = f === 'expense' || f === 'income';
+    const info = isType
+      ? { icon: f === 'expense' ? ico('cash') : ico('salary'), color: f === 'expense' ? '#FF6B6B' : '#34C759', name: f === 'expense' ? '支出' : '收入' }
+      : catInfo(f, 'expense');
+    const total = filtered.reduce((s, r) => s + r.amount, 0);
+    const cls = f === 'income' ? 'income' : 'expense';
+    const sign = f === 'income' ? '+' : '-';
+    summaryHtml = `
+      <div class="filter-summary">
+        <span class="fs-icon" style="background:${info.color}20;color:${info.color};">${ico(info.icon)}</span>
+        <div class="fs-info">
+          <div class="fs-name">${info.name}</div>
+          <div class="fs-count">共 ${filtered.length} 笔记录</div>
+        </div>
+        <div class="fs-total ${cls}" style="color:${f === 'income' ? 'var(--success)' : 'var(--text)'}">${sign}${formatMoney(total)}</div>
+      </div>`;
+  }
+
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">${ico('mail')}</div><p>暂无记录</p></div>`;
+    container.innerHTML = summaryHtml + `<div class="empty-state" style="padding-top:20px;"><div class="empty-icon">${ico('mail')}</div><p>暂无记录</p></div>`;
     return;
   }
 
-  let html = '', lastMonth = '';
+  let html = summaryHtml, lastMonth = '';
   filtered.forEach(r => {
     const m = r.date.slice(0, 7);
     if (m !== lastMonth) {
@@ -1727,9 +1771,7 @@ function showRecordDetail(id) {
     '<div class="detail-stats-grid">' +
     '<div class="detail-stat-card"><div class="ds-val ' + cls + '">' + formatMoney(catTotal) + '</div><div class="ds-lbl">' + r.category + ' 累计</div></div>' +
     '<div class="detail-stat-card"><div class="ds-val">' + catCount + '</div><div class="ds-lbl">总笔数</div></div>' +
-    '<div class="detail-stat-card"><div class="ds-val">' + catPct + '%</div><div class="ds-lbl">占比</div></div></div>' +
-    '<div class="detail-stats-title">分类排名</div>' +
-    '<div class="detail-cat-list">' + catListHtml + '</div>';
+    '<div class="detail-stat-card"><div class="ds-val">' + catPct + '%</div><div class="ds-lbl">占比</div></div></div>';
   document.getElementById('detailOverlay').classList.add('show');
 }
 
