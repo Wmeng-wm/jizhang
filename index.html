@@ -1013,17 +1013,21 @@ async function syncFromCloud(){
     var resp = await fetch(API_BASE + '/records?uid=' + encodeURIComponent(_uid) + '&_=' + Date.now());
     if(!resp.ok) throw new Error('HTTP ' + resp.status);
     var data = await resp.json();
-    if(data.ok && data.records && data.records.length > 0){
-      // 按 id 去重合并（本地为主，云端补充缺失）
-      var byId = {};
-      records.forEach(function(r){ byId[r.id] = r; });
-      data.records.forEach(function(r){ if(!byId[r.id]) byId[r.id] = r; });
-      records = Object.values(byId).sort(function(a,b){ return new Date(a.date) - new Date(b.date) || a.id - b.id; });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-      return true;
-    } else if(data.ok) {
-      // 云端为空：把本地推上去
-      if(records.length > 0) await syncToCloud();
+    if(data.ok){
+      if (data.records && data.records.length > 0) {
+        // 以云端为准，完全替换本地（保证删除/编辑都能同步）
+        records = data.records.slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date) || a.id - b.id; });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        return true;
+      } else {
+        // 云端为空：本地有数据则首次上传；否则清空本地
+        if (records.length > 0) {
+          await syncToCloud();
+        } else {
+          records = [];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        }
+      }
     }
   }catch(e){
     console.warn('云端同步拉取失败', e);
@@ -2141,6 +2145,12 @@ document.getElementById('dateInput').value = getLocalDateStr();
   updateSyncIdUI();
   handleUrlParams();
 })();
+// 切回前台时自动同步（多端实时性）
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'visible') {
+    syncFromCloud().then(function(){ renderAll(); });
+  }
+});
 </script>
 </body>
 </html>
