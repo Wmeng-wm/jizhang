@@ -947,34 +947,14 @@ function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); sy
 var API_BASE = '/api';
 var _syncing = false;
 
-// 设备指纹：同一台设备的任何入口（浏览器/PWA快捷方式）生成相同 ID
-function deviceFingerprint(){
-  var parts = [
-    navigator.userAgent || '',
-    (screen.width || 0) + 'x' + (screen.height || 0),
-    navigator.language || '',
-    new Date().getTimezoneOffset() || 0,
-    navigator.platform || ''
-  ];
-  var s = parts.join('|');
-  var h = 0;
-  for (var i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
-  return 'f' + (h >>> 0).toString(36) + '_' + s.length.toString(36);
-}
-
-// 设备唯一 ID：基于设备指纹生成，同一设备所有入口一致，不同设备隔离
-// 数据隔离硬规则：每台设备的数据只存在自己的 ID 下，任何设备无法获取其他设备的数据
-var _fingerprint = deviceFingerprint();
+// 设备唯一 ID：每台设备生成【随机唯一 ID】，不可预测、不可伪造
+// 数据隔离硬规则：不同设备（即使同型号手机）ID 不同，互相无法获取数据
+// 同机同步说明：同一设备上的浏览器与主屏幕快捷方式若共享浏览器存储（如 Android），
+//   共用同一 ID 自动同步；iOS 快捷方式存储独立，属系统限制。
 var _uid = localStorage.getItem('jz_uid');
-var _oldUid = null; // 旧随机 ID（迁移用）
-
+var _oldUid = null; // 旧 ID（迁移用）
 if (!_uid) {
-  _uid = _fingerprint;
-  try { localStorage.setItem('jz_uid', _uid); } catch(e) {}
-} else if (_uid.charAt(0) === 'u') {
-  // 旧版随机 ID → 迁移到设备指纹 ID（保留旧 ID 以便拉取旧数据后并入）
-  _oldUid = _uid;
-  _uid = _fingerprint;
+  _uid = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6);
   try { localStorage.setItem('jz_uid', _uid); } catch(e) {}
 }
 Object.defineProperty(window, '_uid', { writable: false, configurable: false, value: _uid });
