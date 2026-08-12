@@ -837,6 +837,17 @@ body {
 <div class="toast" id="toast"></div>
 
 <script>
+// ── PWA 缓存清理：移除旧 Service Worker 和缓存，防止看到旧版页面 ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    regs.forEach(function(reg) { reg.unregister(); });
+  }).catch(function(){});
+  if (window.caches) {
+    caches.keys().then(function(keys) {
+      keys.forEach(function(k) { caches.delete(k); });
+    }).catch(function(){});
+  }
+}
 // ── SVG Icon Library ──
 // 统一线条图标（SF Symbols 风格），所有图标 24x24, currentColor
 const ICO = {
