@@ -1771,7 +1771,9 @@ function showRecordDetail(id) {
     '<div class="detail-stats-grid">' +
     '<div class="detail-stat-card"><div class="ds-val ' + cls + '">' + formatMoney(catTotal) + '</div><div class="ds-lbl">' + r.category + ' 累计</div></div>' +
     '<div class="detail-stat-card"><div class="ds-val">' + catCount + '</div><div class="ds-lbl">总笔数</div></div>' +
-    '<div class="detail-stat-card"><div class="ds-val">' + catPct + '%</div><div class="ds-lbl">占比</div></div></div>';
+    '<div class="detail-stat-card"><div class="ds-val">' + catPct + '%</div><div class="ds-lbl">占比</div></div></div>' +
+    '<div class="detail-stats-title">分类排名</div>' +
+    '<div class="detail-cat-list">' + catListHtml + '</div>';
   document.getElementById('detailOverlay').classList.add('show');
 }
 
