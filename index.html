@@ -1723,34 +1723,6 @@ function showRecordDetail(id) {
   const sign = r.type === 'income' ? '+' : '-';
   const label = r.accountType === 'personal' ? '个人' : '工作';
   const acctCls = r.accountType === 'personal' ? 'personal' : 'work';
-  const accountRecs = records.filter(rec => rec.accountType === r.accountType && rec.type === r.type);
-  const catRecs = accountRecs.filter(rec => rec.category === r.category);
-  const catTotal = catRecs.reduce((s, rec) => s + rec.amount, 0);
-  const catCount = catRecs.length;
-  const allTotal = accountRecs.reduce((s, rec) => s + rec.amount, 0);
-  const catPct = allTotal > 0 ? Math.round(catTotal / allTotal * 100) : 0;
-  const catMap = {};
-  accountRecs.forEach(rec => { catMap[rec.category] = (catMap[rec.category] || 0) + rec.amount; });
-  const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
-  const maxAmt = sorted.length > 0 ? sorted[0][1] : 1;
-  const barColors = ['#F56C6C','#E6A23C','#409EFF','#67C23A','#8B5CF6','#FF6B9D','#06B6D4'];
-  let catListHtml = sorted.map(([cat, amt], i) => {
-    const info = catInfo(cat, r.type);
-    const pct = allTotal > 0 ? Math.round(amt / allTotal * 100) : 0;
-    const w = Math.max((amt / maxAmt) * 100, 6);
-    const highlight = cat === r.category ? ' style="background:var(--primary);color:#fff;"' : '';
-    return '<div class="detail-cat-item"' + highlight + '>' +
-      '<span style="font-size:18px;color:' + info.color + '">' + ico(info.icon) + '</span>' +
-      '<span style="font-size:13px;min-width:36px">' + cat + '</span>' +
-      '<div class="detail-cat-bar-bg"><div class="detail-cat-bar" style="width:' + w + '%;background:' + barColors[i % barColors.length] + '"></div></div>' +
-      '<span class="detail-cat-amt">' + formatMoney(amt) + '</span>' +
-      '<span class="detail-cat-pct">' + pct + '%</span></div>';
-  }).join('');
-  const monthRecs = records.filter(rec =>
-    rec.accountType === r.accountType && rec.type === r.type &&
-    rec.category === r.category && rec.date.slice(0, 7) === r.date.slice(0, 7)
-  );
-  const monthTotal = monthRecs.reduce((s, rec) => s + rec.amount, 0);
   document.getElementById('detailContent').innerHTML =
     '<div class="detail-record">' +
     '<div class="dr-icon" style="background:' + c.color + '20;color:' + c.color + ';">' + ico(c.icon) + '</div>' +
@@ -1760,20 +1732,7 @@ function showRecordDetail(id) {
     '<div class="detail-actions">' +
     '<button class="detail-action-btn edit" onclick="openModalForEdit(' + r.id + ')">' + ico('edit') + '编辑</button>' +
     '<button class="detail-action-btn del" onclick="deleteRecordFromDetail(' + r.id + ')">' + ico('trash') + '删除</button>' +
-    '</div>' +
-    '<div class="detail-cat-summary">' +
-    '<div class="cs-icon" style="background:' + c.color + '20;color:' + c.color + ';">' + ico(c.icon) + '</div>' +
-    '<div class="cs-info"><div class="cs-name">' + r.category + ' · ' + label + '账户</div>' +
-    '<div class="cs-count">本月 ' + monthRecs.length + ' 笔 · 累计 ' + catCount + ' 笔 · 占' + label + '支出 ' + catPct + '%</div></div>' +
-    '<div class="cs-total" style="color:' + (r.type === 'income' ? 'var(--success)' : 'var(--text)') + '">' + formatMoney(monthTotal) + '</div>' +
-    '</div>' +
-    '<div class="detail-stats-title">分类统计（' + label + '账户 ' + (r.type === 'expense' ? '支出' : '收入') + '）</div>' +
-    '<div class="detail-stats-grid">' +
-    '<div class="detail-stat-card"><div class="ds-val ' + cls + '">' + formatMoney(catTotal) + '</div><div class="ds-lbl">' + r.category + ' 累计</div></div>' +
-    '<div class="detail-stat-card"><div class="ds-val">' + catCount + '</div><div class="ds-lbl">总笔数</div></div>' +
-    '<div class="detail-stat-card"><div class="ds-val">' + catPct + '%</div><div class="ds-lbl">占比</div></div></div>' +
-    '<div class="detail-stats-title">分类排名</div>' +
-    '<div class="detail-cat-list">' + catListHtml + '</div>';
+    '</div>';
   document.getElementById('detailOverlay').classList.add('show');
 }
 
