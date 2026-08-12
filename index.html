@@ -682,17 +682,7 @@ body {
   <!-- 我的 -->
   <div class="page" id="page-settings">
     <div class="settings-group">
-      <div class="settings-item" onclick="copySyncId()">
-        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M4 16V18.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V16"/><path d="M4 16h16V5.5A1.5 1.5 0 0018.5 4h-13A1.5 1.5 0 004 5.5V16z"/><path d="M12 6v7M9.5 10.5L12 8l2.5 2.5"/></svg></span><div>本机数据 ID<span class="info">本设备唯一标识，用于云端备份恢复</span></div></div>
-        <div class="right" id="syncIdValue">--</div>
-      </div>
-      <div class="settings-item" onclick="manualSync()">
-        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M4 12a8 8 0 0114-5.5M20 12a8 8 0 01-14 5.5"/><path d="M18 2v4.5h-4.5M6 22v-4.5h4.5"/></svg></span><div>立即同步<span class="info">手动拉取/上传本机云端数据</span></div></div>
-        <div class="right" id="syncStatus"></div>
-      </div>
-    </div>
-    <div class="settings-group">
-      <div class="settings-item" onclick="exportBackup()">
+      <div class="settings-item" onclick="exportAccount('personal')">
         <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-3.5 3.6-5.5 8-5.5s8 2 8 5.5"/></svg></span><div>导出个人账单<span class="info">CSV · 可分享到微信/文件</span></div></div>
         <div class="right">›</div>
       </div>
@@ -1049,36 +1039,6 @@ async function syncToCloud(){
   } finally {
     _syncing = false;
   }
-}
-
-// ── 同步 ID 管理 ──
-function updateSyncIdUI(){
-  const el = document.getElementById('syncIdValue');
-  if (el) el.textContent = _uid;
-}
-function copySyncId(){
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(_uid).then(function(){
-      showToast('本机 ID 已复制：' + _uid);
-    }).catch(function(){ fallbackCopy(_uid); });
-  } else {
-    fallbackCopy(_uid);
-  }
-}
-function fallbackCopy(text){
-  const ta = document.createElement('textarea');
-  ta.value = text; document.body.appendChild(ta); ta.select();
-  try { document.execCommand('copy'); showToast('本机 ID 已复制'); } catch(e) { showToast('请手动复制：' + text); }
-  document.body.removeChild(ta);
-}
-async function manualSync(){
-  const st = document.getElementById('syncStatus');
-  if (st) st.textContent = '同步中…';
-  const ok = await syncFromCloud();
-  await syncToCloud();
-  if (st) st.textContent = ok ? '✓ 已同步' : '已上传';
-  renderAll();
-  showToast(ok ? '已拉取云端数据' : '云端为空，已上传本地数据');
 }
 
 function showToast(msg) {
@@ -2142,7 +2102,6 @@ document.getElementById('dateInput').value = getLocalDateStr();
   await syncFromCloud();
   renderAll();
   updateAiToggle();
-  updateSyncIdUI();
   handleUrlParams();
 })();
 // 切回前台时自动同步（多端实时性）
