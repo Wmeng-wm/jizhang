@@ -682,7 +682,17 @@ body {
   <!-- 我的 -->
   <div class="page" id="page-settings">
     <div class="settings-group">
-      <div class="settings-item" onclick="exportAccount('personal')">
+      <div class="settings-item" onclick="copySyncId()">
+        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M4 16V18.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V16"/><path d="M4 16h16V5.5A1.5 1.5 0 0018.5 4h-13A1.5 1.5 0 004 5.5V16z"/><path d="M12 6v7M9.5 10.5L12 8l2.5 2.5"/></svg></span><div>本机数据 ID<span class="info">本设备唯一标识，用于云端备份恢复</span></div></div>
+        <div class="right" id="syncIdValue">--</div>
+      </div>
+      <div class="settings-item" onclick="manualSync()">
+        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M4 12a8 8 0 0114-5.5M20 12a8 8 0 01-14 5.5"/><path d="M18 2v4.5h-4.5M6 22v-4.5h4.5"/></svg></span><div>立即同步<span class="info">手动拉取/上传本机云端数据</span></div></div>
+        <div class="right" id="syncStatus"></div>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-item" onclick="exportBackup()">
         <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-3.5 3.6-5.5 8-5.5s8 2 8 5.5"/></svg></span><div>导出个人账单<span class="info">CSV · 可分享到微信/文件</span></div></div>
         <div class="right">›</div>
       </div>
@@ -941,7 +951,88 @@ function getLocalDateStr() {
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
-function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); syncToCloud(); }
+
+// ── 云端同步（通过 jizhang-api Worker + Cloudflare KV）──
+var API_BASE = '/api';
+var _syncing = false;
+// 设备唯一 ID：首次访问自动生成后【永久固定，不可更改】
+// 数据隔离硬规则：每台设备的数据只存在自己的 ID 下，任何设备无法获取其他设备的数据
+var _uid = localStorage.getItem('jz_uid');
+if (!_uid) {
+  _uid = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  try { localStorage.setItem('jz_uid', _uid); } catch(e) {}
+}
+Object.defineProperty(window, '_uid', { writable: false, configurable: false, value: _uid });
+
+async function syncFromCloud(){
+  try{
+    var resp = await fetch(API_BASE + '/records?uid=' + encodeURIComponent(_uid) + '&_=' + Date.now());
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    var data = await resp.json();
+    if(data.ok && data.records && data.records.length > 0){
+      // 按 id 去重合并（本地为主，云端补充缺失）
+      var byId = {};
+      records.forEach(function(r){ byId[r.id] = r; });
+      data.records.forEach(function(r){ if(!byId[r.id]) byId[r.id] = r; });
+      records = Object.values(byId).sort(function(a,b){ return new Date(a.date) - new Date(b.date) || a.id - b.id; });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      return true;
+    } else if(data.ok) {
+      // 云端为空：把本地推上去
+      if(records.length > 0) await syncToCloud();
+    }
+  }catch(e){
+    console.warn('云端同步拉取失败', e);
+  }
+  return false;
+}
+
+async function syncToCloud(){
+  if(_syncing) return;
+  _syncing = true;
+  try{
+    await fetch(API_BASE + '/records', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ uid: _uid, records: records })
+    });
+  }catch(e){
+    console.warn('云端同步上传失败', e);
+  } finally {
+    _syncing = false;
+  }
+}
+
+// ── 同步 ID 管理 ──
+function updateSyncIdUI(){
+  const el = document.getElementById('syncIdValue');
+  if (el) el.textContent = _uid;
+}
+function copySyncId(){
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(_uid).then(function(){
+      showToast('本机 ID 已复制：' + _uid);
+    }).catch(function(){ fallbackCopy(_uid); });
+  } else {
+    fallbackCopy(_uid);
+  }
+}
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); showToast('本机 ID 已复制'); } catch(e) { showToast('请手动复制：' + text); }
+  document.body.removeChild(ta);
+}
+async function manualSync(){
+  const st = document.getElementById('syncStatus');
+  if (st) st.textContent = '同步中…';
+  const ok = await syncFromCloud();
+  await syncToCloud();
+  if (st) st.textContent = ok ? '✓ 已同步' : '已上传';
+  renderAll();
+  showToast(ok ? '已拉取云端数据' : '云端为空，已上传本地数据');
+}
 
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -1999,9 +2090,14 @@ function handleUrlParams() {
 
 // ── Init ──
 document.getElementById('dateInput').value = getLocalDateStr();
-renderAll();
-updateAiToggle();
-handleUrlParams();
+(async function(){
+  // 先拉取云端记录合并，再渲染（保证多端数据一致）
+  await syncFromCloud();
+  renderAll();
+  updateAiToggle();
+  updateSyncIdUI();
+  handleUrlParams();
+})();
 </script>
 </body>
 </html>
