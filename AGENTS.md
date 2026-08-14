@@ -14,13 +14,15 @@
 - **收支记录**：10+ 分类的支出和收入，支持备注、日期、编辑、滑动删除
 - **统计报表**：日期范围筛选，支出分类排行 + 环形占比图，导出 CSV
 - **数据管理**：导出/导入备份（JSON）、导出账单（CSV）、清除数据
-- **发票报销**（2026-08-14 大升级，已部署）：发票**不在底部导航**，从首页「发票报销」
-  卡片或设置页入口进入独立页面。功能：录入（XML/PDF/OCR）、智能查重、原件附件
-  （IndexedDB）、报销单（分类小计+总计 → 打印/生成 PDF，**一键排版一页一张/一页两张**）、
-  **收票邮箱自动归集**（Email Routing → Worker 关键词过滤 → KV `invmail:<邮箱>` →
-  前端收件箱识别入库）。数据存 `localStorage`（键 `jizhang_invoices`），云同步走
-  `/api/invoices`（KV `invoices:<uid>`，**已部署生效**）；收票邮箱配置存
-  `jizhang_mailbox`，已处理邮件 id 存 `jizhang_invmail_done`
+- **发票报销**（2026-08-14 大升级，已部署）：发票在**底部导航**（统计 与 我的 之间），
+  首页卡片为快捷入口。功能：录入（XML/PDF/OCR）、智能查重、原件附件（IndexedDB，
+  详情直接展示图片/PDF渲染图）、**报销集**（发票分组→组内报销单，今日报销集圆圈多选）、
+  报销单（分类小计+总计 → 打印/生成 PDF，**表格独立一页 + 发票一页一张/两张，
+  contain 容器不切割**）、**收票邮箱自动归集**（Email Routing → Worker 关键词过滤 →
+  KV `invmail:<邮箱>` → 前端收件箱自动识别导入/左滑删除）。数据存 `localStorage`
+  （键 `jizhang_invoices`），云同步走 `/api/invoices`（KV `invoices:<uid>`，已部署生效）；
+  **收票邮箱按设备隔离**（每台手机专属地址 `inv<uid片段>@ksjizhang.top`，共享地址已丢弃保护）；
+  已处理邮件 id 存 `jizhang_invmail_done`
 - **AI 记账**（核心特色）：配合 iOS 快捷指令 `AI记账.shortcut` 实现
   "双击背面 → 截图 → OCR → DeepSeek AI 自动分类记账"（需自备 DeepSeek API Key）
 
@@ -93,18 +95,23 @@ curl -s -o "$LOCALAPPDATA/Temp/cf_resp.txt" -w "%{http_code}" -X PUT \
 
 ## 4. 最近改动记录
 
-### 2026-08-14：发票大升级（已部署）+ 收票邮箱自动归集
+### 2026-08-14：发票大升级（已部署，全天 17 次提交）
 
-- **发票独立页面**：移除底部 Tab 的发票按钮，改为首页「发票报销」卡片 + 设置页入口进入，
-  页内顶部返回按钮
-- **收票邮箱**：设置页「收票邮箱」配置（自定义 `前缀@ksjizhang.top`）→ 用户邮箱设置
-  自动转发 → Email Routing 进 Worker（关键词过滤：发票/电子发票/数电票/增值税/收据/报销/
-  行程单/invoice/fapiao/receipt/ticket）→ 附件 base64 存 KV `invmail:<邮箱>` →
-  发票页「收件箱」点击识别（XML/PDF/OCR）→ 保存后自动删邮件
-- **报销单**：分类分组小计 + 全部总计（弹窗与打印版）；打印窗口**一键排版
-  一页一张/一页两张**（localStorage `jizhang_print_layout` 记忆），打印或另存 PDF
-- **部署**：Worker 已 `wrangler deploy`（`/api/invmail` + `/api/invoices` 生效），
-  前端已写入 KV v4_index；Email Routing 待配置（见 `EMAIL_ROUTING_SETUP.md`）
+- **收票邮箱自动归集**：Email Routing（已启用 + Catch-all → Worker）→ Worker `email` 处理器
+  （postal-mime 解析主题/正文/附件 + HTML 内嵌图提取 + 文件名乱码修复）→ KV `invmail:<邮箱>` →
+  前端收件箱（自动识别导入、左滑删除）
+- **数据隔离**：收票邮箱按设备自动生成专属地址（`inv<uid片段>@ksjizhang.top`），
+  共享地址 `invoice@ksjizhang.top` 已清空并 Worker 端丢弃保护；发票云同步按 uid 隔离
+- **报销集**：发票分组 → 组内创建报销单（分类金额统计）；发票列表圆圈多选加入"今日报销集"
+- **识别增强**：OCR 走 Worker 代理（`/api/ocr`）；PDF 渲染 OCR 优先 + 文本层回退；
+  **结账单/结算单识别**（金额/酒店/日期）；附件文件名解析号码/销售方/日期；
+  发票号码改为可选
+- **发票详情**：原件图片直显、PDF 渲染成图、行程单添加/预览、分类直接改
+- **分类细分**：交通拆分为 高铁/飞机/网约车/公交地铁/加油停车/租车/船票（共 15 类）
+- **打印**：报销单分类小计；表格独立一页 + 发票一页一张/两张（contain 固定容器不切割）；
+  PDF 打印前渲染成图；窗口先写表格异步注入原件（杜绝空白）；✕ 关闭按钮
+- **部署**：Worker 多次 `wrangler deploy`；前端 KV v4_index 多次更新；pdf.js 自托管 KV；
+  GitHub 已同步
 - 完整细节见 `CHANGELOG.md`
 
 ### 2026-08-14：新增发票报销模块（第一期 MVP，本地版未部署）
@@ -176,8 +183,9 @@ office, package, parking, coffee, graduation, award, subsidy, gift`
    Worker `email` 处理器（KV `invmail:<邮箱>`），**改 worker.js 后需
    `cd D:\项目\XHS && npx wrangler deploy worker.js` 才生效**；
    Email Routing 一次性配置见 `EMAIL_ROUTING_SETUP.md`
-10. **发票入口**：发票不在底部 Tab，入口在首页「发票报销」卡片 / 设置页「发票报销」；
-   页面切换函数 `openInvoicePage()` / 返回 `openInvoicePageExit()`
+10. **发票入口**：发票在**底部 Tab**（`data-tab="invoice"`，统计与我的之间），首页卡片为
+   快捷入口；页面切换函数 `switchTab('invoice')` / `openInvoicePage()`；发票页底部有版本标记
+   （`invVersionTag`），排查"用户看到的不是最新版"时先看版本号
 
 ## 6. 相关文件
 
