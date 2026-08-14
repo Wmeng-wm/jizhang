@@ -3203,17 +3203,22 @@ async function recognizePDFFile(file) {
     } catch (e) {}
   }
   var fromText = parseInvoiceText(fullText);
-  if (fromText && fromText.number) return fromText;
-  // 3) 渲染第一页 → 视觉 OCR 兜底
+  // 3) 渲染第一页 → 视觉 OCR（文本层识别失败/乱码时的兜底，渲染图清晰）
   if (getZhipuKey()) {
-    var pg1 = await pdf.getPage(1);
-    var viewport = pg1.getViewport({ scale: 2 });
-    var canvas = document.createElement('canvas');
-    canvas.width = viewport.width; canvas.height = viewport.height;
-    await pg1.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
-    var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-    return await ocrInvoiceBase64(dataUrl, getZhipuKey());
+    try {
+      var pg1 = await pdf.getPage(1);
+      var viewport = pg1.getViewport({ scale: 3 });
+      var canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      await pg1.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      var ocrData = await ocrInvoiceBase64(dataUrl, getZhipuKey());
+      // OCR 结果优先（渲染图能看到文字/图片内容）
+      if (ocrData && (ocrData.number || parseFloat(ocrData.amount) > 0)) return ocrData;
+    } catch (e) { console.warn('PDF 渲染 OCR 失败', e); }
   }
+  // 回退：文本层解析结果（结算单/部分字段）
+  if (fromText && (fromText.number || parseFloat(fromText.amount) > 0)) return fromText;
   return null;
 }
 async function importInvoicePDF(file) {
