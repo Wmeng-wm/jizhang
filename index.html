@@ -417,6 +417,23 @@ body {
 }
 .billing-banner .billing-date { font-weight: 600; }
 
+.month-range-row {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 16px 16px; padding: 12px 14px;
+  background: var(--card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border); border-radius: 16px;
+  box-shadow: var(--glass-shadow);
+}
+.month-range-row .mr-label { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.month-range-row input[type="month"] {
+  flex: 1; min-width: 0; padding: 10px 12px;
+  border: var(--glass-border); border-radius: 10px;
+  font-size: 14px; color: var(--text); outline: none;
+  background: rgba(255,255,255,0.6);
+}
+
 .stats-header {
   padding: 20px; background: var(--card);
   backdrop-filter: var(--glass-blur);
@@ -442,62 +459,32 @@ body {
 }
 .chart-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
 
-.cat-rank { margin: 0 16px 16px; }
-.cat-rank-item {
-  display: flex; align-items: center; padding: 10px 16px; background: var(--card);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-radius: 14px; margin-bottom: 6px; gap: 12px;
-  border: var(--glass-border);
-  box-shadow: var(--glass-shadow);
+.stats-breakdown .donut-wrap {
+  position: relative; width: min(240px, 72vw); margin: 0 auto 18px;
 }
-.cat-rank-bar-bg {
-  flex: 1; height: 8px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden;
+.stats-breakdown .donut-wrap canvas { width: 100%; height: auto; display: block; }
+.donut-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; pointer-events: none;
 }
-.cat-rank-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
-.cat-rank-amount { font-size: 14px; font-weight: 600; min-width: 70px; text-align: right; }
-.cat-rank-pct { font-size: 12px; color: var(--text-secondary); min-width: 44px; text-align: right; }
-
-/* Date range picker for work stats */
-.date-range-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 16px 16px;
-  padding: 12px;
-  background: var(--card);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-radius: 16px;
-  border: var(--glass-border);
-  box-shadow: var(--glass-shadow);
+.donut-center .dc-label { font-size: 12px; color: var(--text-secondary); }
+.donut-center .dc-total { font-size: 22px; font-weight: 700; margin-top: 2px; }
+.breakdown-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0; border-bottom: 0.5px solid rgba(0,0,0,0.06);
 }
-.date-range-row input {
-  flex: 1;
-  padding: 10px 12px;
-  border: var(--glass-border);
-  border-radius: 10px;
-  font-size: 14px;
-  outline: none;
-  -webkit-appearance: none;
-  min-width: 0;
-  background: rgba(255,255,255,0.6);
+.breakdown-item:last-child { border-bottom: none; }
+.breakdown-item .bd-icon {
+  width: 34px; height: 34px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
 }
-.date-range-row .sep { color: var(--text-light); font-size: 14px; flex-shrink: 0; }
-.date-range-row .gen-btn {
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #7B93FF, var(--primary));
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  box-shadow: 0 3px 10px rgba(79,110,247,0.3);
-}
-.date-range-row .gen-btn:active { opacity: 0.85; }
+.breakdown-item .bd-info { flex: 1; min-width: 0; }
+.breakdown-item .bd-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.breakdown-item .bd-name { font-size: 13px; font-weight: 600; }
+.breakdown-item .bd-pct { font-size: 11px; color: var(--text-light); }
+.breakdown-item .bd-bar-bg { height: 6px; border-radius: 3px; background: rgba(0,0,0,0.06); overflow: hidden; }
+.breakdown-item .bd-bar { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.breakdown-item .bd-amt { font-size: 13px; font-weight: 700; white-space: nowrap; }
 
 .stat-empty {
   text-align: center;
@@ -1642,38 +1629,52 @@ function renderHistory(filter) {
 }
 
 // ── Statistics Page ──
-function renderStats() {
-  const container = document.getElementById('statsContent');
+let selectedStatsMonth = '';
+
+function currentStatsRange(monthStr) {
   const today = getLocalDateStr();
-  const firstOfMonth = today.slice(0, 7) + '-01';
+  const month = monthStr || today.slice(0, 7);
+  const start = month + '-01';
+  const lastDay = new Date(parseInt(month.slice(0, 4)), parseInt(month.slice(5, 7)), 0).getDate();
+  const monthEnd = month + '-' + String(lastDay).padStart(2, '0');
+  return { start, end: monthEnd > today ? today : monthEnd, month };
+}
+
+function renderStats() {
+  if (!selectedStatsMonth) selectedStatsMonth = getLocalDateStr().slice(0, 7);
+  const container = document.getElementById('statsContent');
+  const range = currentStatsRange(selectedStatsMonth);
   const isPersonal = currentAccount === 'personal';
   const icon = isPersonal ? ico('user') : ico('work');
   const label = isPersonal ? '个人' : '工作';
   const bannerCls = isPersonal ? 'personal' : 'work';
+  const startLabel = parseInt(range.start.slice(5, 7)) + '月' + parseInt(range.start.slice(8)) + '日';
+  const endLabel = parseInt(range.end.slice(5, 7)) + '月' + parseInt(range.end.slice(8)) + '日';
+  const isCurrentMonth = range.month === getLocalDateStr().slice(0, 7);
+  const bannerTitle = isCurrentMonth ? '本月统计' : parseInt(range.month.slice(5, 7)) + '月统计';
 
   container.innerHTML = `
     <div class="billing-banner ${bannerCls}">
-      <span>${icon} ${label}账户 · 手动统计</span>
-      <span class="billing-date">选择日期范围后生成</span>
+      <span>${icon} ${label}账户 · ${bannerTitle}</span>
+      <span class="billing-date">${startLabel} - ${endLabel}</span>
     </div>
-    <div class="date-range-row">
-      <input type="date" id="statsDateStart" value="${firstOfMonth}">
-      <span class="sep">至</span>
-      <input type="date" id="statsDateEnd" value="${today}">
-      <button class="gen-btn" onclick="generateStats()">生成报表</button>
+    <div class="month-range-row">
+      <span class="mr-label">统计月份</span>
+      <input type="month" id="statsMonth" value="${selectedStatsMonth}" onchange="setStatsMonth(this.value)">
     </div>
-    <div id="statsResult">
-      <div class="stat-empty">选择日期范围后点击"生成报表"</div>
-    </div>
+    <div id="statsResult"></div>
   `;
+  generateStats();
+}
+
+function setStatsMonth(month) {
+  if (!month) return;
+  selectedStatsMonth = month;
+  renderStats();
 }
 
 function generateStats() {
-  const start = document.getElementById('statsDateStart').value;
-  const end = document.getElementById('statsDateEnd').value;
-  if (!start || !end) { showToast('请选择日期范围'); return; }
-  if (start > end) { showToast('开始日期不能晚于结束日期'); return; }
-
+  const { start, end } = currentStatsRange(selectedStatsMonth || getLocalDateStr().slice(0, 7));
   const periodRecords = records.filter(r =>
     r.accountType === currentAccount && r.date >= start && r.date <= end
   );
@@ -1773,40 +1774,36 @@ function buildStatsBody(totalExpense, totalIncome, count, expenses, catType) {
   const sorted = Object.entries(catMap).sort((a,b) => b[1] - a[1]);
   const maxAmount = sorted.length > 0 ? sorted[0][1] : 1;
 
-  html += `<div class="chart-container"><div class="chart-title">支出分类排行</div>`;
+  html += `<div class="chart-container stats-breakdown"><div class="chart-title">支出占比</div>`;
   if (sorted.length === 0) {
     html += `<div class="stat-empty">暂无支出数据</div>`;
   } else {
-    html += `<div class="cat-rank" style="margin:0;">`;
-    const barColors = ['#F56C6C','#E6A23C','#409EFF','#67C23A','#8B5CF6','#FF6B9D','#06B6D4','#F472B6','#10B981','#9CA83F'];
-    sorted.forEach(([cat, amt], i) => {
-      const info = catInfo(cat, catType);
-      const pct = totalExpense > 0 ? Math.round(amt / totalExpense * 100) : 0;
-      const w = Math.max((amt / maxAmount) * 100, 8);
-      html += `
-        <div class="cat-rank-item">
-          <span style="font-size:22px;color:${info.color}">${ico(info.icon)}</span>
-          <span style="font-size:14px;min-width:40px">${cat}</span>
-          <div class="cat-rank-bar-bg">
-            <div class="cat-rank-bar" style="width:${w}%;background:${barColors[i%barColors.length]}"></div>
-          </div>
-          <span class="cat-rank-amount">${formatMoney(amt)}</span>
-          <span class="cat-rank-pct">${pct}%</span>
-        </div>`;
-    });
-    html += `</div>`;
+    html += `
+      <div class="donut-wrap">
+        <canvas id="pieChart" width="240" height="240"></canvas>
+        <div class="donut-center">
+          <span class="dc-label">总支出</span>
+          <span class="dc-total">${formatMoney(totalExpense)}</span>
+        </div>
+      </div>
+      <div class="breakdown-list">
+        ${sorted.map(([cat, amt]) => {
+          const info = catInfo(cat, catType);
+          const pct = totalExpense > 0 ? Math.round(amt / totalExpense * 100) : 0;
+          const w = Math.max((amt / maxAmount) * 100, 4);
+          return `
+            <div class="breakdown-item">
+              <span class="bd-icon" style="color:${info.color};background:${info.color}18;">${ico(info.icon)}</span>
+              <div class="bd-info">
+                <div class="bd-top"><span class="bd-name">${cat}</span><span class="bd-pct">${pct}%</span></div>
+                <div class="bd-bar-bg"><div class="bd-bar" style="width:${w}%;background:${info.color};"></div></div>
+              </div>
+              <span class="bd-amt">${formatMoney(amt)}</span>
+            </div>`;
+        }).join('')}
+      </div>`;
   }
   html += `</div>`;
-  // 支出分类饼图
-  if (sorted.length > 0 && totalExpense > 0) {
-    html += `
-    <div class="chart-container">
-      <div class="chart-title">支出占比</div>
-      <div style="text-align:center;padding:10px 0;">
-        <canvas id="pieChart" width="260" height="260" style="max-width:100%;"></canvas>
-      </div>
-    </div>`;
-  }
   return html;
 }
 
@@ -1819,41 +1816,19 @@ function drawDonutChart(catMap, totalExpense) {
   ctx.clearRect(0, 0, w, h);
   var entries = Object.entries(catMap).sort(function(a,b) { return b[1] - a[1]; });
   if (entries.length === 0) return;
-  var colors = ['#F56C6C','#E6A23C','#409EFF','#67C23A','#8B5CF6','#FF6B9D','#06B6D4','#F472B6','#10B981','#9CA83F','#F97316','#14B8A6'];
   var total = totalExpense;
   var startAngle = -Math.PI / 2;
-  entries.forEach(function(e, i) {
+  entries.forEach(function(e) {
     var pct = e[1] / total;
     var endAngle = startAngle + pct * 2 * Math.PI;
     ctx.beginPath();
     ctx.arc(cx, cy, r, startAngle, endAngle);
     ctx.arc(cx, cy, ir, endAngle, startAngle, true);
     ctx.closePath();
-    ctx.fillStyle = colors[i % colors.length];
+    ctx.fillStyle = catInfo(e[0], 'expense').color;
     ctx.fill();
-    // 标签
-    if (pct >= 0.03) {
-      var mid = startAngle + pct * Math.PI;
-      var lx = cx + Math.cos(mid) * (r + 14);
-      var ly = cy + Math.sin(mid) * (r + 14);
-      ctx.fillStyle = '#333';
-      ctx.font = '11px -apple-system, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      var label = e[0] + ' ' + Math.round(pct * 100) + '%';
-      ctx.fillText(label, lx, ly);
-    }
     startAngle = endAngle;
   });
-  // 中心文字
-  ctx.fillStyle = '#303133';
-  ctx.font = 'bold 18px -apple-system, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('总支出', cx, cy - 10);
-  ctx.font = 'bold 16px -apple-system, sans-serif';
-  ctx.fillStyle = '#F56C6C';
-  ctx.fillText('¥' + totalExpense.toFixed(0), cx, cy + 14);
 }
 
 // ── Modal ──
