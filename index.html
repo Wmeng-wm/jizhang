@@ -1083,7 +1083,7 @@ body {
       <button class="filter-chip" data-filter="done">已报销</button>
     </div>
     <div class="inv-list" id="invList"></div>
-    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v18</div>
+    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v27</div>
   </div>
 
   <!-- Tab Bar -->
@@ -3922,6 +3922,8 @@ async function printReimbursement() {
     'td.num, th.num { text-align: right; }' +
     '.rs-total-row td { font-weight: 700; background: #fafafa; }' +
     '.rs-note { font-size: 11px; color: #888; margin-bottom: 20px; }' +
+    // 表格后强制分页：报销单独占一页，发票从新页开始
+    '#invBlocks { page-break-before: always; }' +
     // 发票原件分页：每个 .inv-page 强制一页（仅打印时），屏幕预览紧凑不分离
     '.inv-page { page-break-after: always; }' +
     '.inv-page:last-child { page-break-after: auto; }' +
@@ -3932,12 +3934,12 @@ async function printReimbursement() {
     '.inv-block { page-break-inside: avoid; }' +
     '.inv-block h3 { font-size: 12px; margin: 0 0 4px; padding-bottom: 3px; border-bottom: 1px solid #ccc; }' +
     '.inv-block .meta { font-size: 10px; color: #555; margin-bottom: 6px; }' +
-    // 一页一张：图高固定 800px（A4 内容区约 1017px，加标题也不超页，完整一页）
-    '.layout-1 .inv-block img { max-width: 100%; max-height: 800px; display: block; margin: 0 auto; }' +
+    // 一页一张：图固定在 800px 容器内 contain 缩放，任何尺寸都不会超页
+    '.layout-1 .inv-block img { width: 100%; height: 800px; object-fit: contain; display: block; }' +
     '.layout-1 .inv-block embed { width: 100%; height: 800px; border: 1px solid #ddd; }' +
     '.layout-1 .inv-block pre { font-size: 10px; white-space: pre-wrap; word-break: break-all; background: #fafafa; border: 1px solid #ddd; padding: 10px; margin: 0; max-height: 800px; overflow: hidden; }' +
-    // 一页两张：每张固定 430px，两张并排共一页
-    '.layout-2 .inv-block img { max-width: 100%; max-height: 430px; display: block; margin: 0 auto; }' +
+    // 一页两张：每张固定 430px 容器，两张并排共一页
+    '.layout-2 .inv-block img { width: 100%; height: 430px; object-fit: contain; display: block; }' +
     '.layout-2 .inv-block embed { width: 100%; height: 430px; border: 1px solid #ddd; }' +
     '.layout-2 .inv-block pre { font-size: 9px; white-space: pre-wrap; word-break: break-all; background: #fafafa; border: 1px solid #ddd; padding: 8px; margin: 0; max-height: 430px; overflow: hidden; }' +
     '.layout-bar { position: sticky; top: 0; z-index: 10; background: #f6f7fb; padding: 10px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e3e5ec; font-size: 13px; color: #555; }' +
