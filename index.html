@@ -3281,16 +3281,39 @@ function parseInvoiceText(text) {
   dateRaw = dateRaw.replace(/年/g, '-').replace(/月/g, '-').replace(/日/g, '').replace(/\//g, '-');
   var seller = grab(/销售方[（(]名称[）)][：:\s]*([^\n]+)/)
     || grab(/销售方名称[：:\s]*([^\n]+)/) || '';
+  // 结账单 / 结算单识别（酒店/出行报销凭证：无发票号码但有消费金额）
+  var isSettlement = /结账单|结算单|结帐单|消费合计|付款合计|入住日期|离店日期/.test(text);
+  if (!number && !amountRaw && isSettlement) {
+    amountRaw = grab(/消费合计\s*[：:]?\s*[¥￥]?\s*([\d,]+(?:\.\d{1,2})?)/)
+      || grab(/付款合计\s*[：:]?\s*[¥￥]?\s*([\d,]+(?:\.\d{1,2})?)/)
+      || grab(/金额合计\s*[：:]?\s*[¥￥]?\s*([\d,]+(?:\.\d{1,2})?)/)
+      || grab(/总计\s*[：:]?\s*[¥￥]?\s*([\d,]+(?:\.\d{1,2})?)/) || '';
+  }
   if (!number && !amountRaw) return null;
   var amount = parseFloat(amountRaw.replace(/,/g, ''));
   if (!amount || amount <= 0) return null;
+  if (isSettlement) {
+    // 结算单：金额 + 酒店名（文本第一行）+ 离店/打印日期
+    if (!seller) {
+      var firstLine = String(text).split('\n')[0].trim();
+      var hotelM = firstLine.match(/^(.{2,20}?(?:酒店|宾馆|民宿|饭店|旅馆|公寓))/);
+      seller = hotelM ? hotelM[1] : firstLine.slice(0, 30);
+    }
+    if (!dateRaw) {
+      dateRaw = grab(/离店日期\s*[：:]\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
+        || grab(/离店日期\s*[：:]\s*(\d{4}年\d{1,2}月\d{1,2}日)/)
+        || grab(/打印日期\s*[：:]\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2})/)
+        || grab(/打印日期\s*[：:]\s*(\d{4}年\d{1,2}月\d{1,2}日)/) || '';
+      dateRaw = dateRaw.replace(/年/g, '-').replace(/月/g, '-').replace(/日/g, '').replace(/\//g, '-');
+    }
+  }
   return {
     number: number, code: code,
     amount: Math.round(amount * 100) / 100,
     tax: taxRaw ? Math.round(parseFloat(taxRaw.replace(/,/g, '')) * 100) / 100 : 0,
     date: normInvDate(dateRaw),
     seller: seller.replace(/\s+$/, ''),
-    type: guessInvCat(seller)
+    type: isSettlement && seller ? guessInvCat(seller) : (guessInvCat(seller) || '住宿')
   };
 }
 // ── 拍照 / 图片 OCR（智谱视觉模型）──
@@ -4339,15 +4362,26 @@ function tryFillFromMailMeta(att) {
   var filledNum = !!numInput.value;
   var subject = (_invMailProcessing && _invMailProcessing.mail && _invMailProcessing.mail.subject) || '';
   var fname = (att && att.name) || '';
-  // 1) 发票号码：主题优先，其次文件名
+  // 1) 发票号码：主题优先，其次扫描整封邮件的附件文件名
   var number = filledNum ? numInput.value : '';
   if (!number) {
     var m = String(subject).match(/发票号码[：:\s]*([A-Za-z0-9]{15,25})/)
       || String(subject).match(/发票号[码]?[：:\s]*([A-Za-z0-9]{15,25})/)
       || String(subject).match(/(?:数电票|电子发票)[号码]*[：:\s]*([A-Za-z0-9]{15,25})/)
-      || String(subject).match(/(\d{20})/)
-      || fname.match(/dzfp_(\d{15,25})/)
-      || fname.match(/(\d{20})/);
+      || String(subject).match(/(\d{20})/);
+    if (!m) {
+      // 扫描本邮件所有附件名（dzfp_号码_销售方_日期.pdf）
+      var allNames = [];
+      if (att && att.name) allNames.push(att.name);
+      var mail = _invMailProcessing && _invMailProcessing.mail;
+      if (mail && mail.attachments) mail.attachments.forEach(function(a) { allNames.push(a.name || ''); });
+      for (var ni = 0; ni < allNames.length; ni++) {
+        m = allNames[ni].match(/dzfp_(\d{15,25})/);
+        if (m) break;
+        m = allNames[ni].match(/(\d{20})/);
+        if (m) break;
+      }
+    }
     if (m && m[1]) { number = m[1]; numInput.value = number; }
   }
   // 2) 销售方：从文件名 dzfp_号码_销售方_日期.pdf 提取
