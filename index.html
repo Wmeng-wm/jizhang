@@ -1045,7 +1045,7 @@ body {
       </div>
       <div class="settings-item" onclick="configureInvMailbox()">
         <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M3 6.5l9 6.5 9-6.5"/><path d="M3 15.5l5.5-4M21 15.5l-5.5-4"/></svg></span><div>收票邮箱<span class="info">发票邮件自动转发到这里识别入库 · 点击查看/复制</span></div></div>
-        <div class="right" id="invMailboxStatus" style="font-size:11px;color:var(--primary);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">invoice@ksjizhang.top</div>
+        <div class="right" id="invMailboxStatus" style="font-size:11px;color:var(--primary);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">本机专属</div>
       </div>
     </div>
     <div class="settings-group">
@@ -1222,7 +1222,7 @@ body {
     <div class="modal-handle"></div>
     <div class="modal-title">收票邮箱</div>
     <div class="inv-form">
-      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:600">收票地址（已预设，无需配置）</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:600">收票地址（本机专属，每台手机独立）</div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <input type="text" id="invMailCustomInput" readonly style="flex:1;padding:11px 13px;border:var(--glass-border);border-radius:13px;font-size:15px;outline:none;background:rgba(255,255,255,0.65);color:var(--text)">
         <button class="inv-btn ghost" style="flex:0 0 auto;padding:0 14px;height:42px;font-size:13px" onclick="copyInvMailbox()">复制</button>
@@ -4099,10 +4099,20 @@ function copyReimbursement() {
   showToast('报销单已复制');
 }
 // ── 收票邮箱（邮件自动归集：发票邮件转发到收票地址 → Worker 归集 → 这里识别入库）──
-// 预设固定地址 invoice@ksjizhang.top，无需配置；如需更换可在设置页自定义
+// 每台手机自动生成专属收票地址（含设备 ID 片段），邮件按地址隔离，只能看到自己的发票邮件；
+// 如需更换可在设置页自定义前缀
 function getInvMailbox() {
-  var v = (localStorage.getItem(INV_MAILBOX_KEY) || INV_MAILBOX_PRESET).trim().toLowerCase();
-  return v || INV_MAILBOX_PRESET;
+  var custom = (localStorage.getItem(INV_MAILBOX_KEY) || '').trim().toLowerCase();
+  if (custom) return custom;
+  // 按设备 uid 自动生成专属地址（与记账 uid 机制一致，随机不可预测）
+  var uid = (typeof _uid !== 'undefined' && _uid) ? String(_uid) : '';
+  var tag = uid.replace(/[^a-z0-9]/gi, '').slice(-10).toLowerCase();
+  return tag ? ('inv' + tag + '@ksjizhang.top') : INV_MAILBOX_PRESET;
+}
+function getInvMailboxLabel() {
+  var addr = getInvMailbox();
+  if (localStorage.getItem(INV_MAILBOX_KEY)) return addr; // 用户自定义
+  return addr + '（本机专属，自动生成）';
 }
 function configureInvMailbox() {
   // 打开设置弹窗：显示预设地址 + 一键复制，可选用自定义地址
@@ -4123,7 +4133,7 @@ function saveInvMailbox() {
     showToast('已使用自定义地址：' + addr);
   } else {
     localStorage.removeItem(INV_MAILBOX_KEY);
-    showToast('已使用预设地址：' + INV_MAILBOX_PRESET);
+    showToast('已恢复本机专属收票地址');
   }
   updateInvMailboxStatus();
   closeInvMailSet();
@@ -4134,7 +4144,7 @@ function closeInvMailSetOutside(e) {
 }
 function updateInvMailboxStatus() {
   var el = document.getElementById('invMailboxStatus');
-  if (el) el.textContent = getInvMailbox();
+  if (el) el.textContent = getInvMailboxLabel();
 }
 function getInvMailDone() {
   try { return JSON.parse(localStorage.getItem(INV_MAIL_DONE_KEY) || '[]'); } catch (e) { return []; }
@@ -4165,7 +4175,7 @@ async function refreshInvMail() {
     listEl.innerHTML = '';
     return;
   }
-  tipEl.innerHTML = '收票邮箱：<b>' + escHtml(mail) + '</b>' + (mail === INV_MAILBOX_PRESET ? '（预设，无需配置）' : '') + '<br>在 QQ/网易邮箱设置「自动转发」到此地址（主题含「发票」的邮件才会归集）';
+  tipEl.innerHTML = '收票邮箱：<b>' + escHtml(mail) + '</b>（本机专属，只能看到自己转发的邮件）<br>在 QQ/网易邮箱设置「自动转发」到此地址（主题含「发票」的邮件才会归集）';
   listEl.innerHTML = '<div class="inv-mail-empty">' + ico('mail') + '<div>正在拉取邮件…</div></div>';
   try {
     var resp = await fetch(API_BASE + '/invmail?mail=' + encodeURIComponent(mail) + '&_=' + Date.now());
