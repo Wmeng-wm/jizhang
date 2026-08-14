@@ -1083,7 +1083,7 @@ body {
       <button class="filter-chip" data-filter="done">已报销</button>
     </div>
     <div class="inv-list" id="invList"></div>
-    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v14</div>
+    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v18</div>
   </div>
 
   <!-- Tab Bar -->
@@ -3176,18 +3176,24 @@ function loadPdfJs() {
   });
   return _pdfjsPromise;
 }
-// PDF 第一页渲染为图片（详情弹窗内直接展示 PDF 原件）
+// PDF 第一页渲染为图片（详情弹窗内直接展示 PDF 原件）；带超时保护，避免卡死
 async function renderPdfFirstPageAsImage(blob) {
-  var pdfjsLib = await loadPdfJs();
-  var buf = await blob.arrayBuffer();
-  var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-  var page = await pdf.getPage(1);
-  var viewport = page.getViewport({ scale: 1.6 });
-  var canvas = document.createElement('canvas');
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
-  return canvas.toDataURL('image/jpeg', 0.85);
+  var render = (async function() {
+    var pdfjsLib = await loadPdfJs();
+    var buf = await blob.arrayBuffer();
+    var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    var page = await pdf.getPage(1);
+    var viewport = page.getViewport({ scale: 1.6 });
+    var canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+    return canvas.toDataURL('image/jpeg', 0.85);
+  })();
+  return Promise.race([
+    render,
+    new Promise(function(resolve, reject) { setTimeout(function() { reject(new Error('PDF渲染超时')); }, 9000); })
+  ]);
 }
 // PDF 数电票识别（三级策略：内嵌 XML → 文本层 → 图像 OCR），返回识别数据或 null（不操作表单）
 async function recognizePDFFile(file) {
@@ -3892,6 +3898,7 @@ function buildInvBlocksHTML(attData, layout) {
   return h;
 }
 async function printReimbursement() {
+  try {
   const sel = getRsSel();
   if (sel.length === 0) { showToast('请先选择发票'); return; }
   const total = sel.reduce((s, i) => s + i.amount, 0);
@@ -3946,6 +3953,7 @@ async function printReimbursement() {
       '<button id="lay2" class="' + (layout === 2 ? 'active' : '') + '" onclick="__setLayout(2)">一页两张</button>' +
     '</div>' +
     '<span style="font-size:11px;color:#999">打印对话框选「另存为 PDF」即生成文件</span></div>';
+  html += '<div id="printDiag" style="padding:8px 14px;font-size:12px;color:#e67e22;background:#fef9e7;border-bottom:1px solid #eee">正在生成打印内容…</div>';
   // 报销单明细表
   html += '<div class="rs-head"><h1>费 用 报 销 单</h1><div class="sub">报销日期：' + today + '　·　共 ' + sel.length + ' 张发票　·　税额合计 ¥' + taxTotal.toFixed(2) + '</div></div>';
   html += '<table><thead><tr><th style="width:32px">序号</th><th>开票日期</th><th>分类</th><th>发票号码</th><th>销售方</th><th class="num">金额</th></tr></thead><tbody>';
@@ -3968,75 +3976,88 @@ async function printReimbursement() {
   html += '<tr class="rs-total-row"><td>全部总计</td><td class="num">' + sel.length + '</td><td class="num">¥' + total.toFixed(2) + '</td></tr>';
   html += '</tbody></table>';
   html += '<div class="rs-note">报销人：＿＿＿＿＿＿　　审批人：＿＿＿＿＿＿　　财务：＿＿＿＿＿＿</div>';
-  // 发票原件附件 + 行程单：PDF 渲染成图片（打印时 embed 不渲染会空白），支持窗口内切换排版
+  // ── 立即写入基础内容（表格），原件异步渲染后注入，避免窗口空白 ──
+  html += '<script>';
+  html += 'window.__rs = { layout: ' + layout + ', atts: [] };';
+  html += 'var buildInvBlocksHTML = ' + buildInvBlocksHTML.toString() + ';';
+  html += 'function __renderBlocks(){ var el = document.getElementById("invBlocks"); if (!el) return; el.className = "layout-" + window.__rs.layout; el.innerHTML = buildInvBlocksHTML(window.__rs.atts, window.__rs.layout); }';
+  html += 'function __setLayout(n){ window.__rs.layout = n; try{ localStorage.setItem("jizhang_print_layout", String(n)); }catch(e){} document.getElementById("lay1").className = n === 1 ? "active" : ""; document.getElementById("lay2").className = n === 2 ? "active" : ""; __renderBlocks(); }';
+  html += '<\/script>';
+  html += '<div id="invBlocks" class="layout-' + layout + '"><p style="font-size:12px;color:#888;padding:8px">发票原件加载中…</p></div>';
+  html += '<script>window.onload = function(){ var d = document.getElementById("printDiag"); if (d) d.textContent = "生成完成：报销单 ' + sel.length + ' 张发票，正在加载原件…"; }<\/script>';
+  html += '</body></html>';
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  // 异步收集原件（每个 PDF 渲染带超时，失败回退原始文件）
   var attData = [];
   for (var k = 0; k < sorted.length; k++) {
     var iv = sorted[k];
     if (iv.attach) {
-      var blob = await attachGet(iv.id);
-      var url = '';
-      var type = (iv.attach.type || (blob && blob.type) || '').toLowerCase();
-      var text = '';
-      if (blob) {
-        if (type.indexOf('pdf') >= 0) {
-          // PDF → 渲染第一页为图片（打印稳定）
-          try {
-            url = await renderPdfFirstPageAsImage(blob);
-            type = 'image/jpeg';
-          } catch (e) { url = URL.createObjectURL(blob); }
-        } else {
-          url = URL.createObjectURL(blob);
-          if (type.indexOf('image/') !== 0) {
-            try { text = await blob.text(); } catch (e) {}
+      try {
+        var blob = await attachGet(iv.id);
+        var url = '';
+        var type = (iv.attach.type || (blob && blob.type) || '').toLowerCase();
+        var text = '';
+        if (blob) {
+          if (type.indexOf('pdf') >= 0) {
+            try { url = await renderPdfFirstPageAsImage(blob); type = 'image/jpeg'; }
+            catch (e) { url = URL.createObjectURL(blob); }
+          } else {
+            url = URL.createObjectURL(blob);
+            if (type.indexOf('image/') !== 0) { try { text = await blob.text(); } catch (e) {} }
           }
         }
-      }
-      attData.push({
-        seller: iv.seller || iv.number, number: iv.number || '',
-        amount: iv.amount.toFixed(2), name: iv.attach.name || '',
-        url: url, type: type, text: text
-      });
+        attData.push({ seller: iv.seller || iv.number, number: iv.number || '', amount: iv.amount.toFixed(2), name: iv.attach.name || '', url: url, type: type, text: text });
+      } catch (e) { console.warn('原件加载失败', e); }
     }
     if (iv.trip) {
-      var tBlob = await attachGet(iv.id, 'trip_');
-      var tUrl = '';
-      var tType = (iv.trip.type || (tBlob && tBlob.type) || '').toLowerCase();
-      var tText = '';
-      if (tBlob) {
-        if (tType.indexOf('pdf') >= 0) {
-          try {
-            tUrl = await renderPdfFirstPageAsImage(tBlob);
-            tType = 'image/jpeg';
-          } catch (e) { tUrl = URL.createObjectURL(tBlob); }
-        } else {
-          tUrl = URL.createObjectURL(tBlob);
-          if (tType.indexOf('image/') !== 0) {
-            try { tText = await tBlob.text(); } catch (e) {}
+      try {
+        var tBlob = await attachGet(iv.id, 'trip_');
+        var tUrl = '';
+        var tType = (iv.trip.type || (tBlob && tBlob.type) || '').toLowerCase();
+        var tText = '';
+        if (tBlob) {
+          if (tType.indexOf('pdf') >= 0) {
+            try { tUrl = await renderPdfFirstPageAsImage(tBlob); tType = 'image/jpeg'; }
+            catch (e) { tUrl = URL.createObjectURL(tBlob); }
+          } else {
+            tUrl = URL.createObjectURL(tBlob);
+            if (tType.indexOf('image/') !== 0) { try { tText = await tBlob.text(); } catch (e) {} }
           }
         }
-      }
-      attData.push({
-        seller: (iv.seller || iv.number) + '（行程单）', number: iv.number || '',
-        amount: iv.amount.toFixed(2), name: iv.trip.name || '行程单',
-        url: tUrl, type: tType, text: tText
-      });
+        attData.push({ seller: (iv.seller || iv.number) + '（行程单）', number: iv.number || '', amount: iv.amount.toFixed(2), name: iv.trip.name || '行程单', url: tUrl, type: tType, text: tText });
+      } catch (e) { console.warn('行程单加载失败', e); }
     }
   }
-  html += '<script>';
-  html += 'window.__rs = { layout: ' + layout + ', atts: ' + JSON.stringify(attData) + ' };';
-  html += 'var buildInvBlocksHTML = ' + buildInvBlocksHTML.toString() + ';';
-  html += 'function __buildBlocks(){ return buildInvBlocksHTML(window.__rs.atts, window.__rs.layout); }';
-  html += 'function __setLayout(n){ window.__rs.layout = n; try{ localStorage.setItem("jizhang_print_layout", String(n)); }catch(e){} document.getElementById("lay1").className = n === 1 ? "active" : ""; document.getElementById("lay2").className = n === 2 ? "active" : ""; var el = document.getElementById("invBlocks"); el.className = "layout-" + n; el.innerHTML = __buildBlocks(); }';
-  html += '<\/script>';
-  html += '<div id="invBlocks" class="layout-' + layout + '">' + buildInvBlocksHTML(attData, layout) + '</div>';
-  if (attData.length === 0) {
-    html += '<p style="font-size:12px;color:#888">本报销单未附带发票原件（可在发票详情中补充附件后重新打印）。</p>';
+  // 注入原件到打印窗口
+  try {
+    w.__rs.atts = attData;
+    w.__renderBlocks();
+    var d2 = w.document.getElementById('printDiag');
+    if (d2) d2.textContent = '生成完成：' + sel.length + ' 张发票，原件 ' + attData.length + ' 个。下方为报销单与发票原件。';
+    // 等图片加载后自动打印
+    setTimeout(function() {
+      try {
+        var imgs = w.document.querySelectorAll('img');
+        var pend = [].filter.call(imgs, function(im) { return !im.complete; });
+        function go() { try { w.focus(); w.print(); } catch (e) {} }
+        if (pend.length === 0) { go(); return; }
+        var left = pend.length, done = 0;
+        pend.forEach(function(im) {
+          im.addEventListener('load', function() { if (++done >= left) go(); });
+          im.addEventListener('error', function() { done++; if (done >= left) go(); });
+        });
+      } catch (e) { console.warn('自动打印失败', e); }
+    }, 300);
+  } catch (e) {
+    console.warn('原件注入失败', e);
+    showToast('打印窗口已打开，但原件加载失败（' + (e && e.message ? e.message : e) + '）');
   }
-  // 等所有图片加载完成再自动弹出打印（避免 PDF 里图片空白/分离）
-  html += '<script>window.onload = function(){ var imgs = document.querySelectorAll("img"); var pend = [].filter.call(imgs, function(im){ return !im.complete; }); function go(){ setTimeout(function(){ window.print(); }, 350); } if (pend.length === 0) { go(); return; } var left = pend.length, done = 0; pend.forEach(function(im){ im.addEventListener("load", function(){ if (++done >= left) go(); }); im.addEventListener("error", function(){ done++; if (done >= left) go(); }); }); }<\/script>';
-  html += '</body></html>';
-  w.document.write(html);
-  w.document.close();
+  } catch (e) {
+    console.error('打印失败', e);
+    showToast('打印失败：' + (e && e.message ? e.message : e));
+  }
 }
 function markSelectedClaimed() {
   const sel = getRsSel();
