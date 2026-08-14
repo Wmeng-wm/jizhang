@@ -2573,6 +2573,7 @@ document.addEventListener('touchend',function(e){
     var dist = Math.sqrt(dx*dx + dy*dy);
     if (dist <= 15) {
       if(cc.classList.contains('swiped'))cc.classList.remove('swiped');
+      else if (ct.dataset.type === 'mail') processInvMail(ct.dataset.id);
       else showRecordDetail(parseInt(ct.dataset.id));
     }
   }
@@ -4151,15 +4152,37 @@ function renderInvMailList() {
     var tag = isDone
       ? '<span class="inv-mail-tag done">已处理</span>'
       : (m.attachCount > 0 ? '<span class="inv-mail-tag new">' + m.attachCount + ' 附件</span>' : '<span class="inv-mail-tag none">无附件</span>');
-    return '<div class="inv-mail-item" onclick="processInvMail(\'' + m.id + '\')">' +
-      '<span class="inv-mail-icon">' + ico('mail') + '</span>' +
-      '<div class="inv-mail-main">' +
-        '<div class="inv-mail-subject">' + escHtml(m.subject || '(无主题)') + '</div>' +
-        '<div class="inv-mail-meta">' + escHtml(m.from || '') + ' · ' + fmtMailDate(m.date) + ' · ' + escHtml(attTxt) + '</div>' +
-      '</div>' + tag +
+    // 支持左滑删除（复用全局 swipe-container 机制）
+    return '<div class="swipe-container" data-id="' + m.id + '" data-type="mail" style="margin:0 0 8px;border-radius:14px">' +
+      '<div class="swipe-content" style="border-radius:14px">' +
+        '<div class="inv-mail-item" onclick="processInvMail(\'' + m.id + '\')">' +
+          '<span class="inv-mail-icon">' + ico('mail') + '</span>' +
+          '<div class="inv-mail-main">' +
+            '<div class="inv-mail-subject">' + escHtml(m.subject || '(无主题)') + '</div>' +
+            '<div class="inv-mail-meta">' + escHtml(m.from || '') + ' · ' + fmtMailDate(m.date) + ' · ' + escHtml(attTxt) + '</div>' +
+          '</div>' + tag +
+        '</div>' +
+      '</div>' +
+      '<div class="swipe-delete" style="border-radius:0 14px 14px 0"><div class="swipe-btn del" onclick="deleteInvMail(\'' + m.id + '\')">删除</div></div>' +
     '</div>';
   }).join('');
   refreshInvMailCnt();
+}
+// 左滑删除邮件（从云收件箱删除）
+async function deleteInvMail(id) {
+  if (!confirm('删除这封邮件？')) return;
+  var mail = getInvMailbox();
+  try {
+    await fetch(API_BASE + '/invmail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mail: mail, action: 'delete', id: id })
+    });
+  } catch (e) { /* 本地移除即可 */ }
+  markInvMailDone(id);
+  _invMailList = _invMailList.filter(function(x) { return x.id !== id; });
+  renderInvMailList();
+  showToast('邮件已删除');
 }
 function fmtMailDate(iso) {
   if (!iso) return '';
