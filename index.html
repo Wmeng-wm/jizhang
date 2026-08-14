@@ -3222,9 +3222,15 @@ async function importInvoicePDF(file) {
   showToast('正在解析 PDF…');
   try {
     var data = await recognizePDFFile(file);
-    if (data && data.number) { fillInvForm(data); showToast('已识别（PDF），请核对后保存'); return; }
+    // 只要识别出号码或金额就算部分成功，可预填后补充
+    if (data && (data.number || parseFloat(data.amount) > 0)) {
+      fillInvForm(data);
+      showToast(data.number ? '已识别（PDF），请核对后保存' : '已识别部分字段（缺号码），请补充后保存');
+      return;
+    }
     var ocrErr = window._lastOcrError || '';
-    showToast(ocrErr ? 'PDF 识别失败：' + ocrErr : (getZhipuKey() ? 'PDF 识别失败，可截图后用拍照识别' : 'PDF 无文字层，请设置智谱 Key 或用拍照识别'));
+    var keyInfo = getZhipuKey() ? '' : '（⚠ 当前浏览器未检测到智谱 Key，请在设置页重新保存）';
+    showToast(ocrErr ? 'PDF 识别失败：' + ocrErr + keyInfo : (getZhipuKey() ? 'PDF 识别失败，可截图后用拍照识别' : 'PDF 无文字层，请设置智谱 Key 或用拍照识别'));
   } catch (e) {
     console.warn('PDF 解析失败', e);
     showToast(e && e.message && e.message.indexOf('联网') >= 0 ? e.message : 'PDF 解析失败，请检查文件');
@@ -3336,9 +3342,16 @@ async function ocrInvoiceBase64(base64, apiKey) {
     var m = String(content).match(/\{[\s\S]*\}/);
     if (!m) { showToast('未识别到发票信息'); return null; }
     var obj = JSON.parse(m[0]);
+    var number = String(obj.number || '').trim();
+    var amount = parseFloat(String(obj.amount || '').replace(/,/g, '')) || 0;
+    if (!number && !amount) {
+      window._lastOcrError = '识别结果为空（图片模糊或非标准发票）';
+      showToast('识别结果为空（图片模糊或非标准发票）');
+      return null;
+    }
     return {
-      number: obj.number || '', code: obj.code || '',
-      amount: parseFloat(String(obj.amount || '').replace(/,/g, '')) || 0,
+      number: number, code: String(obj.code || '').trim(),
+      amount: amount,
       tax: parseFloat(String(obj.tax || '').replace(/,/g, '')) || 0,
       date: obj.date || '', seller: obj.seller || '',
       type: obj.type || ''
@@ -4315,6 +4328,24 @@ async function loadNextMailAttachment() {
   } catch (e) {
     console.warn('邮件附件解析失败', e);
     showToast('附件解析失败，请手动填写');
+  }
+  // 识别失败/号码为空时，尝试从邮件标题提取发票号码预填（很多发票邮件主题自带号码）
+  tryFillNumberFromMailSubject();
+}
+// 从当前邮件的主题提取发票号码并填入表单（识别失败时的兜底）
+function tryFillNumberFromMailSubject() {
+  var numInput = document.getElementById('invNumberInput');
+  if (!numInput || numInput.value) return;
+  var mail = _invMailProcessing && _invMailProcessing.mail;
+  if (!mail || !mail.subject) return;
+  var subject = String(mail.subject);
+  var m = subject.match(/发票号码[：:\s]*([A-Za-z0-9]{15,25})/)
+    || subject.match(/发票号[码]?[：:\s]*([A-Za-z0-9]{15,25})/)
+    || subject.match(/(?:数电票|电子发票)[号码]*[：:\s]*([A-Za-z0-9]{15,25})/)
+    || subject.match(/(\d{20})/); // 20 位数电票号码
+  if (m && m[1]) {
+    numInput.value = m[1];
+    showToast('已从邮件标题提取发票号码，请补充金额等字段');
   }
 }
 function base64ToBlob(b64, type) {
