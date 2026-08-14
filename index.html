@@ -3952,7 +3952,9 @@ async function printReimbursement() {
       '<button id="lay1" class="' + (layout === 1 ? 'active' : '') + '" onclick="__setLayout(1)">一页一张</button>' +
       '<button id="lay2" class="' + (layout === 2 ? 'active' : '') + '" onclick="__setLayout(2)">一页两张</button>' +
     '</div>' +
-    '<span style="font-size:11px;color:#999">打印对话框选「另存为 PDF」即生成文件</span></div>';
+    '<span style="font-size:11px;color:#999">打印对话框选「另存为 PDF」即生成文件</span>' +
+    '<button onclick="window.close()" style="margin-left:auto;border:none;background:#e8eaf2;padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer;color:#333">✕ 关闭</button>' +
+    '</div>';
   html += '<div id="printDiag" style="padding:8px 14px;font-size:12px;color:#e67e22;background:#fef9e7;border-bottom:1px solid #eee">正在生成打印内容…</div>';
   // 报销单明细表
   html += '<div class="rs-head"><h1>费 用 报 销 单</h1><div class="sub">报销日期：' + today + '　·　共 ' + sel.length + ' 张发票　·　税额合计 ¥' + taxTotal.toFixed(2) + '</div></div>';
