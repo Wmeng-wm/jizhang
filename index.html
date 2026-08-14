@@ -1083,6 +1083,7 @@ body {
       <button class="filter-chip" data-filter="done">已报销</button>
     </div>
     <div class="inv-list" id="invList"></div>
+    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v14</div>
   </div>
 
   <!-- Tab Bar -->
@@ -1158,7 +1159,7 @@ body {
       <div class="f-label">报销分类</div>
       <div class="inv-cat-chips" id="invCatChips"></div>
       <div class="f-row">
-        <div><div class="f-label">发票号码</div><input type="text" id="invNumberInput" placeholder="必填 · 用于查重"></div>
+        <div><div class="f-label">发票号码</div><input type="text" id="invNumberInput" placeholder="可选 · 用于查重"></div>
         <div><div class="f-label">发票代码</div><input type="text" id="invCodeInput" placeholder="可选"></div>
       </div>
       <div class="f-row">
@@ -3175,6 +3176,19 @@ function loadPdfJs() {
   });
   return _pdfjsPromise;
 }
+// PDF 第一页渲染为图片（详情弹窗内直接展示 PDF 原件）
+async function renderPdfFirstPageAsImage(blob) {
+  var pdfjsLib = await loadPdfJs();
+  var buf = await blob.arrayBuffer();
+  var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  var page = await pdf.getPage(1);
+  var viewport = page.getViewport({ scale: 1.6 });
+  var canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
 // PDF 数电票识别（三级策略：内嵌 XML → 文本层 → 图像 OCR），返回识别数据或 null（不操作表单）
 async function recognizePDFFile(file) {
   var pdfjsLib = await loadPdfJs();
@@ -3513,7 +3527,7 @@ async function saveInvoice() {
   const number = document.getElementById('invNumberInput').value.trim();
   const code = document.getElementById('invCodeInput').value.trim();
   if (!amount || amount <= 0) { showToast('请输入金额'); return; }
-  if (!number) { showToast('请输入发票号码'); return; }
+  // 发票号码已改为可选（用于查重，可为空）
   const dup = findDuplicateInv(number, code, invEditingId);
   const warnEl = document.getElementById('invDupWarn');
   if (dup && !_invForceSave) {
@@ -3602,15 +3616,24 @@ async function showInvoiceDetail(id) {
   const setsRow = invSets.length > 0
     ? '<div class="detail-meta-item" style="grid-column:1/-1;cursor:pointer" onclick="openInvSetDetail(\'' + invSets[0].id + '\')"><div class="dm-label">所属报销集 <span style="color:var(--primary);font-weight:600">查看 →</span></div><div class="dm-value" style="color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(invSets.map(function(s) { return s.name; }).join('、')) + '</div></div>'
     : '';
-  // 原件图片：图片类型直接在详情里展示
+  // 原件图片：图片直接展示，PDF 渲染第一页为图展示（都不再显示"附件查看"行）
   let previewHtml = '';
+  let hideAttachRow = false;
   try {
     if (iv.attach) {
       var blob = await attachGet(id);
       var at = (iv.attach.type || (blob && blob.type) || '').toLowerCase();
       if (blob && at.indexOf('image/') === 0) {
+        hideAttachRow = true;
         var imgUrl = URL.createObjectURL(blob);
         previewHtml = '<div class="inv-detail-preview"><img src="' + imgUrl + '" onclick="window.open(\'' + imgUrl + '\',\'_blank\')"></div>';
+      } else if (blob && at.indexOf('pdf') >= 0) {
+        // PDF 渲染第一页为图片展示
+        try {
+          var pdfImg = await renderPdfFirstPageAsImage(blob);
+          hideAttachRow = true;
+          previewHtml = '<div class="inv-detail-preview"><img src="' + pdfImg + '" onclick="window.open(\'' + pdfImg + '\',\'_blank\')"></div>';
+        } catch (e) { /* PDF 渲染失败则保留预览行 */ }
       }
     }
   } catch (e) { /* 原件读取失败不影响详情 */ }
@@ -3636,7 +3659,7 @@ async function showInvoiceDetail(id) {
       '<div class="detail-meta-item"><div class="dm-label">发票代码</div><div class="dm-value inv-num">' + (iv.code || '—') + '</div></div>' +
       '<div class="detail-meta-item"><div class="dm-label">税额</div><div class="dm-value">' + formatMoney(iv.tax || 0) + '</div></div>' +
       '<div class="detail-meta-item"><div class="dm-label">价税合计</div><div class="dm-value">' + formatMoney(iv.amount) + '</div></div>' +
-      (iv.attach ? '<div class="detail-meta-item" style="grid-column:1/-1;cursor:pointer" onclick="previewInvoiceAttach(' + iv.id + ')"><div class="dm-label">发票原件 <span style="color:var(--primary);font-weight:600">预览 →</span></div><div class="dm-value" style="color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(iv.attach.name) + '</div></div>' : '') +
+      (iv.attach && !hideAttachRow ? '<div class="detail-meta-item" style="grid-column:1/-1;cursor:pointer" onclick="previewInvoiceAttach(' + iv.id + ')"><div class="dm-label">发票原件 <span style="color:var(--primary);font-weight:600">预览 →</span></div><div class="dm-value" style="color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(iv.attach.name) + '</div></div>' : '') +
       setsRow +
       tripHtml +
     '</div>' +
@@ -3892,9 +3915,10 @@ async function printReimbursement() {
     'td.num, th.num { text-align: right; }' +
     '.rs-total-row td { font-weight: 700; background: #fafafa; }' +
     '.rs-note { font-size: 11px; color: #888; margin-bottom: 20px; }' +
-    // 发票原件分页：每个 .inv-page 强制一页，最后不强制
+    // 发票原件分页：每个 .inv-page 强制一页（仅打印时），屏幕预览紧凑不分离
     '.inv-page { page-break-after: always; }' +
     '.inv-page:last-child { page-break-after: auto; }' +
+    '@media screen { .inv-page { page-break-after: auto; margin-bottom: 24px; } }' +
     // 一页两张：table 双列（打印布局最稳）
     '.inv-page table.pair { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; }' +
     '.inv-page table.pair td.cell { width: 50%; vertical-align: top; padding: 0 8px; border: none !important; }' +
@@ -3944,7 +3968,7 @@ async function printReimbursement() {
   html += '<tr class="rs-total-row"><td>全部总计</td><td class="num">' + sel.length + '</td><td class="num">¥' + total.toFixed(2) + '</td></tr>';
   html += '</tbody></table>';
   html += '<div class="rs-note">报销人：＿＿＿＿＿＿　　审批人：＿＿＿＿＿＿　　财务：＿＿＿＿＿＿</div>';
-  // 发票原件附件 + 行程单：收集数据（含 blob URL），支持窗口内切换排版重建
+  // 发票原件附件 + 行程单：PDF 渲染成图片（打印时 embed 不渲染会空白），支持窗口内切换排版
   var attData = [];
   for (var k = 0; k < sorted.length; k++) {
     var iv = sorted[k];
@@ -3954,9 +3978,17 @@ async function printReimbursement() {
       var type = (iv.attach.type || (blob && blob.type) || '').toLowerCase();
       var text = '';
       if (blob) {
-        url = URL.createObjectURL(blob);
-        if (type.indexOf('image/') !== 0 && type.indexOf('pdf') < 0) {
-          try { text = await blob.text(); } catch (e) {}
+        if (type.indexOf('pdf') >= 0) {
+          // PDF → 渲染第一页为图片（打印稳定）
+          try {
+            url = await renderPdfFirstPageAsImage(blob);
+            type = 'image/jpeg';
+          } catch (e) { url = URL.createObjectURL(blob); }
+        } else {
+          url = URL.createObjectURL(blob);
+          if (type.indexOf('image/') !== 0) {
+            try { text = await blob.text(); } catch (e) {}
+          }
         }
       }
       attData.push({
@@ -3971,9 +4003,16 @@ async function printReimbursement() {
       var tType = (iv.trip.type || (tBlob && tBlob.type) || '').toLowerCase();
       var tText = '';
       if (tBlob) {
-        tUrl = URL.createObjectURL(tBlob);
-        if (tType.indexOf('image/') !== 0 && tType.indexOf('pdf') < 0) {
-          try { tText = await tBlob.text(); } catch (e) {}
+        if (tType.indexOf('pdf') >= 0) {
+          try {
+            tUrl = await renderPdfFirstPageAsImage(tBlob);
+            tType = 'image/jpeg';
+          } catch (e) { tUrl = URL.createObjectURL(tBlob); }
+        } else {
+          tUrl = URL.createObjectURL(tBlob);
+          if (tType.indexOf('image/') !== 0) {
+            try { tText = await tBlob.text(); } catch (e) {}
+          }
         }
       }
       attData.push({
@@ -4153,8 +4192,8 @@ function renderInvMailList() {
       ? '<span class="inv-mail-tag done">已处理</span>'
       : (m.attachCount > 0 ? '<span class="inv-mail-tag new">' + m.attachCount + ' 附件</span>' : '<span class="inv-mail-tag none">无附件</span>');
     // 支持左滑删除（复用全局 swipe-container 机制）
-    return '<div class="swipe-container" data-id="' + m.id + '" data-type="mail" style="margin:0 0 8px;border-radius:14px">' +
-      '<div class="swipe-content" style="border-radius:14px">' +
+    return '<div class="swipe-container" data-id="' + m.id + '" data-type="mail" style="margin:0 0 8px;border-radius:14px;background:#fff">' +
+      '<div class="swipe-content" style="border-radius:14px;background:#fff">' +
         '<div class="inv-mail-item" onclick="processInvMail(\'' + m.id + '\')">' +
           '<span class="inv-mail-icon">' + ico('mail') + '</span>' +
           '<div class="inv-mail-main">' +
@@ -4311,7 +4350,7 @@ async function createInvoiceFromData(rec, file, att) {
     created: Date.now(),
     autoImported: true
   };
-  if (!data.number || !data.amount || data.amount <= 0) return null;
+  if (!data.amount || data.amount <= 0) return null;
   invoices.unshift(data);
   try {
     await attachSave(data.id, file);
