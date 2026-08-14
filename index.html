@@ -3905,7 +3905,7 @@ async function printReimbursement() {
   const taxTotal = sel.reduce((s, i) => s + (i.tax || 0), 0);
   const sorted = sel.slice().sort((a, b) => (a.date + '').localeCompare(b.date + ''));
   const today = getLocalDateStr();
-  const layout = parseInt(localStorage.getItem('jizhang_print_layout') || '1', 10) === 2 ? 2 : 1;
+  const layout = parseInt(localStorage.getItem('jizhang_print_layout') || '2', 10) === 2 ? 2 : 1;
   const w = window.open('', '_blank');
   if (!w) { showToast('请允许弹窗以打印'); return; }
   let html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>报销单 ' + today + '</title>';
