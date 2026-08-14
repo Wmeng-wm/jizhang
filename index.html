@@ -3345,8 +3345,8 @@ async function ocrInvoiceBase64(base64, apiKey) {
     var number = String(obj.number || '').trim();
     var amount = parseFloat(String(obj.amount || '').replace(/,/g, '')) || 0;
     if (!number && !amount) {
-      window._lastOcrError = '识别结果为空（图片模糊或非标准发票）';
-      showToast('识别结果为空（图片模糊或非标准发票）');
+      window._lastOcrError = '图片模糊或非标准发票';
+      showToast('识别结果为空（图片模糊或非标准发票，请用高清版文件导入或拍照识别）');
       return null;
     }
     return {
