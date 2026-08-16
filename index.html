@@ -866,6 +866,64 @@ body {
 .inv-page-head .inv-page-title{flex:1;text-align:center;font-size:17px;font-weight:700;letter-spacing:1px}
 .inv-page-head .inv-page-spacer{width:36px;flex-shrink:0}
 /* 发票页（含首页快捷入口） */
+/* ── 发票页顶栏：未报销/报销中 Tab + 搜索/添加 ── */
+.inv-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px 6px}
+.inv-state-tabs{display:flex;gap:6px;background:rgba(255,255,255,0.45);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:var(--glass-border);border-radius:14px;padding:4px;flex:1}
+.inv-state-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:none;background:transparent;padding:9px 8px;border-radius:11px;font-size:14px;font-weight:600;color:var(--text-secondary);cursor:pointer;touch-action:manipulation;transition:all .2s}
+.inv-state-tab.active{background:linear-gradient(135deg,#7B93FF,var(--primary));color:#fff;box-shadow:0 3px 10px rgba(79,110,247,0.35)}
+.inv-state-tab .st-badge{font-size:11px;font-weight:700;min-width:18px;height:18px;line-height:18px;padding:0 5px;border-radius:9px;background:rgba(255,255,255,0.25);color:inherit;display:inline-block;text-align:center}
+.inv-top-actions{display:flex;gap:8px;flex-shrink:0}
+.inv-top-btn{width:42px;height:42px;border-radius:14px;border:var(--glass-border);background:rgba(255,255,255,0.55);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);color:var(--primary);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--glass-shadow);touch-action:manipulation}
+.inv-top-btn.primary{background:linear-gradient(135deg,#7B93FF,var(--primary));color:#fff;border:none;box-shadow:0 4px 14px rgba(79,110,247,0.4)}
+.inv-top-btn:active{transform:scale(0.92)}
+.inv-search{display:flex;align-items:center;gap:8px;margin:2px 16px 0;padding:4px 12px;background:rgba(255,255,255,0.6);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:var(--glass-border);border-radius:14px;box-shadow:var(--glass-shadow)}
+.inv-search input{flex:1;border:none;outline:none;background:transparent;font-size:14px;padding:9px 0;color:var(--text)}
+.inv-search-clear{border:none;background:rgba(120,130,180,0.14);color:var(--text-secondary);width:22px;height:22px;border-radius:50%;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* ── 发票筛选栏：排序/抬头/归类/更多 ── */
+.inv-filterbar{display:flex;gap:8px;padding:10px 16px 2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.inv-filterbar::-webkit-scrollbar{display:none}
+.inv-filterbar select{flex-shrink:0;border:var(--glass-border);background:rgba(255,255,255,0.55);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border-radius:12px;padding:8px 10px;font-size:12px;color:var(--text);outline:none;-webkit-appearance:none;appearance:none;max-width:130px}
+.inv-more-filter{flex-shrink:0;border:var(--glass-border);background:rgba(255,255,255,0.55);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border-radius:12px;padding:8px 12px;font-size:12px;color:var(--primary);font-weight:600;cursor:pointer;white-space:nowrap}
+.inv-more-filter:active{opacity:.7}
+/* ── 报销集卡片（虚线框，发票盒子风格） ── */
+#invSetCards{padding:10px 16px 0}
+.inv-set-card{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:12px 14px;border:1.5px dashed rgba(255,159,10,0.55);background:rgba(255,248,235,0.75);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border-radius:16px;box-shadow:0 2px 10px rgba(255,159,10,0.08);cursor:pointer;touch-action:manipulation}
+.inv-set-card:active{transform:scale(0.98)}
+.inv-set-check{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,159,10,0.5);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;cursor:pointer}
+.inv-set-check.on{background:linear-gradient(135deg,#FFB75E,#FF9F0A);border-color:transparent}
+.inv-set-body{flex:1;min-width:0}
+.inv-set-name{font-size:14px;font-weight:700;color:#B45309;display:flex;align-items:center;gap:6px}
+.inv-set-count{font-size:11px;font-weight:400;color:#C2761A;background:rgba(255,159,10,0.12);padding:2px 8px;border-radius:8px;white-space:nowrap}
+.inv-set-amount{font-size:15px;font-weight:700;color:#B45309;margin-top:3px}
+.inv-set-amount em{font-style:normal;font-size:11px;font-weight:500;color:#C2761A}
+.inv-set-thumbs{display:flex;flex-shrink:0}
+.inv-set-thumbs .st-thumb{width:26px;height:34px;border-radius:5px;background:linear-gradient(160deg,#FFF3DC,#FFE3B3);border:0.5px solid rgba(255,159,10,0.35);margin-left:-8px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.inv-set-thumbs .st-thumb:first-child{margin-left:0}
+.inv-set-thumbs .st-thumb.more{background:rgba(255,159,10,0.16);color:#B45309;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;border-style:dashed}
+/* ── 底部操作栏（收票邮箱/复制/拍照/更多） ── */
+.inv-dock{position:sticky;bottom:calc(76px + var(--safe-bottom));margin:8px 14px 0;display:flex;gap:8px;background:rgba(248,249,253,0.75);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);border:0.5px solid rgba(255,255,255,0.7);border-radius:20px;padding:8px 10px;box-shadow:0 8px 28px rgba(0,0,0,0.14);z-index:40}
+.dock-btn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:transparent;padding:6px 2px;font-size:11px;color:var(--text-secondary);cursor:pointer;border-radius:12px;touch-action:manipulation}
+.dock-btn:active{background:rgba(79,110,247,0.1)}
+.dock-btn .dock-ico{width:22px;height:22px;color:var(--primary);display:flex;align-items:center;justify-content:center}
+.dock-btn .dock-ico svg{width:20px;height:20px}
+.dock-btn.mail{flex:1.8;flex-direction:row;gap:7px;color:var(--text);font-size:12px;padding:4px 8px;background:rgba(79,110,247,0.08);border-radius:13px}
+.dock-btn.mail .dock-main{flex:1;min-width:0;text-align:left}
+.dock-btn.mail .dock-label{font-size:10px;color:var(--text-secondary);display:block}
+.dock-btn.mail .dock-addr{font-size:11px;color:var(--primary);font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dock-cnt{position:absolute;top:2px;right:2px;background:var(--danger);color:#fff;border-radius:9px;font-size:10px;min-width:16px;height:16px;line-height:16px;padding:0 4px;font-weight:700}
+.dock-btn.mail{position:relative}
+/* ── 更多菜单 ── */
+.inv-more-item{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:0.5px solid rgba(120,130,180,0.12);font-size:15px;cursor:pointer;color:var(--text)}
+.inv-more-item:last-child{border-bottom:none}
+.inv-more-item:active{opacity:.6}
+.inv-more-ico{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.inv-more-ico.mail{background:rgba(79,110,247,0.12);color:var(--primary)}
+.inv-more-ico.folder{background:rgba(255,159,10,0.14);color:#B45309}
+.inv-more-ico.report{background:rgba(52,199,89,0.14);color:#248A3D}
+.inv-more-ico.done{background:rgba(120,130,180,0.14);color:var(--text-secondary)}
+.inv-more-ico.gear{background:rgba(120,130,180,0.14);color:var(--text-secondary)}
+.inv-more-ico.csv{background:rgba(52,199,89,0.14);color:#248A3D}
+.inv-more-cnt{margin-left:auto;background:var(--primary);color:#fff;border-radius:9px;font-size:12px;min-width:20px;height:20px;line-height:20px;padding:0 6px;font-weight:700;text-align:center}
 /* ── 收件箱 ── */
 .inv-mailbox-btn{flex:0 0 auto;padding:0 12px;font-size:13px}
 .inv-mailbox-btn .cnt{background:var(--danger);color:#fff;border-radius:9px;font-size:11px;min-width:18px;height:18px;line-height:18px;padding:0 4px;font-weight:700}
@@ -1047,27 +1105,70 @@ body {
     </div>
   </div>
 
-  <!-- 发票（独立页面，从首页/设置页进入） -->
+  <!-- 发票（底部 Tab 页） -->
   <div class="page" id="page-invoice">
-    <div class="inv-page-head">
-      <button class="inv-back" onclick="openInvoicePageExit()">‹</button>
-      <div class="inv-page-title">发票报销</div>
-      <div class="inv-page-spacer"></div>
+    <!-- 顶栏：未报销/报销中 Tab + 搜索 + 添加 -->
+    <div class="inv-topbar">
+      <div class="inv-state-tabs" id="invStateTabs">
+        <button class="inv-state-tab active" data-invtab="pending">未报销<span class="st-badge" id="invBadgePending">0</span></button>
+        <button class="inv-state-tab" data-invtab="processing">报销中<span class="st-badge" id="invBadgeProcessing">0</span></button>
+      </div>
+      <div class="inv-top-actions">
+        <button class="inv-top-btn" onclick="toggleInvSearch()" title="搜索"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg></button>
+        <button class="inv-top-btn primary" onclick="openInvoiceModal()" title="添加发票"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="width:20px;height:20px"><path d="M12 5v14M5 12h14"/></svg></button>
+      </div>
     </div>
-    <div class="inv-summary" id="invSummary"></div>
-    <div class="inv-actions">
-      <button class="inv-btn primary" onclick="openInvoiceModal()">＋ 添加</button>
-      <button class="inv-btn ghost" onclick="openInvMailbox()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M3 6.5l9 6.5 9-6.5"/></svg>收件箱<span class="cnt" id="invMailCnt" style="display:none">0</span></button>
-      <button class="inv-btn ghost" onclick="openInvSetList()">报销集</button>
-      <button class="inv-btn ghost" id="reimburseBtn" onclick="toggleSelectMode()">报销单<span class="cnt" id="reimburseCnt">0</span></button>
+    <!-- 搜索框（默认隐藏） -->
+    <div class="inv-search" id="invSearchWrap" style="display:none">
+      <input type="text" id="invSearchInput" placeholder="搜索销售方、发票号码、备注..." oninput="onInvSearch()">
+      <button class="inv-search-clear" onclick="clearInvSearch()">✕</button>
     </div>
-    <div class="filter-bar" id="invFilterBar">
-      <button class="filter-chip active" data-filter="all">全部</button>
-      <button class="filter-chip" data-filter="pending">未报销</button>
-      <button class="filter-chip" data-filter="done">已报销</button>
+    <!-- 筛选栏 -->
+    <div class="inv-filterbar" id="invFilterBar">
+      <select id="invSortSel" onchange="onInvFilterChange()">
+        <option value="import-desc">按导入倒序</option>
+        <option value="amount-desc">按金额从高到低</option>
+        <option value="date-asc">按日期从早到晚</option>
+      </select>
+      <select id="invSellerSel" onchange="onInvFilterChange()"><option value="">抬头：全部</option></select>
+      <select id="invCatSel" onchange="onInvFilterChange()"><option value="">归类：全部</option></select>
+      <button class="inv-more-filter" onclick="openInvMoreFilter()">更多筛选</button>
     </div>
+    <!-- 报销集卡片区 -->
+    <div id="invSetCards"></div>
+    <!-- 发票列表 -->
     <div class="inv-list" id="invList"></div>
-    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v27</div>
+    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v28</div>
+    <!-- 底部操作栏 -->
+    <div class="inv-dock">
+      <button class="dock-btn mail" onclick="openInvMailbox()">
+        <span class="dock-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M3 6.5l9 6.5 9-6.5"/></svg></span>
+        <span class="dock-main"><span class="dock-label">收票邮箱</span><span class="dock-addr" id="invDockAddr"></span></span>
+        <span class="dock-cnt" id="invMailCnt" style="display:none">0</span>
+      </button>
+      <button class="dock-btn" onclick="copyInvMailbox()"><span class="dock-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="12" height="12" rx="2.5"/><path d="M15.5 5.5v-1a2 2 0 00-2-2h-9a2 2 0 00-2 2v9a2 2 0 002 2h1"/></svg></span>复制</button>
+      <button class="dock-btn" onclick="pickInvoicePhoto()"><span class="dock-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5h2.6l1.7-2.4a1 1 0 01.8-.4h6.8a1 1 0 01.8.4L18.4 8.5H21a1 1 0 011 1V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5a1 1 0 011-1z"/><circle cx="12" cy="14" r="3.6"/></svg></span>拍照</button>
+      <button class="dock-btn" onclick="openInvMoreMenu()"><span class="dock-ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></span>更多</button>
+    </div>
+    <input type="file" id="invPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="importInvoiceImage(event)">
+    <!-- 更多菜单 -->
+    <div class="modal-overlay" id="invMoreOverlay" onclick="closeInvMoreMenu(event)">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-handle"></div>
+        <div class="modal-title">更多</div>
+        <div class="inv-form">
+          <div class="inv-more-item" onclick="closeInvMoreMenu();openInvMailbox()"><span class="inv-more-ico mail">✉</span>收件箱<span class="inv-more-cnt" id="invMailCnt2" style="display:none">0</span></div>
+          <div class="inv-more-item" onclick="closeInvMoreMenu();openInvSetList()"><span class="inv-more-ico folder">▤</span>报销集列表</div>
+          <div class="inv-more-item" id="reimburseBtn" onclick="closeInvMoreMenu();toggleSelectMode()"><span class="inv-more-ico report">☰</span>报销单<span class="inv-more-cnt" id="reimburseCnt">0</span></div>
+          <div class="inv-more-item" onclick="closeInvMoreMenu();setInvTab('done')"><span class="inv-more-ico done">✓</span>已报销发票</div>
+          <div class="inv-more-item" onclick="closeInvMoreMenu();configureInvMailbox()"><span class="inv-more-ico gear">⚙</span>收票邮箱设置</div>
+          <div class="inv-more-item" onclick="closeInvMoreMenu();exportReimbursementCSV()"><span class="inv-more-ico csv">⇩</span>导出 CSV</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px">
+          <button class="inv-btn cancel" onclick="closeInvMoreMenu()">关闭</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Tab Bar -->
@@ -2975,20 +3076,108 @@ function attachDelete(invId, prefix) {
 let _invPendingAttach = null;
 
 // ── 渲染发票页 ──
+// 发票状态视图：pending=未报销 processing=报销中 done=已报销
+let invTab = 'pending';
+let invSearchText = '';
+function isInvInAnySet(ivId) {
+  return reimburseSets.some(function(s) { return (s.invoiceIds || []).indexOf(ivId) >= 0; });
+}
 function renderInvoicePage() {
-  const pending = invoices.filter(i => i.status !== 1);
-  const done = invoices.filter(i => i.status === 1);
-  const total = invoices.reduce((s, i) => s + i.amount, 0);
-  const pendingSum = pending.reduce((s, i) => s + i.amount, 0);
-  const doneSum = done.reduce((s, i) => s + i.amount, 0);
-  document.getElementById('invSummary').innerHTML =
-    '<div class="inv-sum-card"><div class="l">待报销</div><div class="v pending">' + fmtMoneyShort(pendingSum) + '</div></div>' +
-    '<div class="inv-sum-card"><div class="l">待报销</div><div class="v pending">' + pending.length + ' 张</div></div>' +
-    '<div class="inv-sum-card"><div class="l">已报销</div><div class="v done">' + fmtMoneyShort(doneSum) + '</div></div>' +
-    '<div class="inv-sum-card"><div class="l">全部</div><div class="v">' + fmtMoneyShort(total) + '</div></div>';
+  // 徽标：未报销 = 未报销且不在任何报销集；报销中 = 未报销但在报销集
+  var pendingAll = invoices.filter(i => i.status !== 1);
+  var pendingFree = pendingAll.filter(i => !isInvInAnySet(i.id));
+  var processing = pendingAll.filter(i => isInvInAnySet(i.id));
+  var done = invoices.filter(i => i.status === 1);
+  var bp = document.getElementById('invBadgePending');
+  var bq = document.getElementById('invBadgeProcessing');
+  if (bp) bp.textContent = pendingFree.length;
+  if (bq) bq.textContent = processing.length;
+  // 状态 Tab 高亮
+  document.querySelectorAll('#invStateTabs .inv-state-tab').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.invtab === invTab);
+  });
+  // 底部操作栏：收票邮箱地址
+  var dockAddr = document.getElementById('invDockAddr');
+  if (dockAddr) dockAddr.textContent = getInvMailboxLabel();
   var rcEl = document.getElementById('reimburseCnt');
-  if (rcEl) rcEl.textContent = invSelectMode ? Object.keys(invSelected).length : pending.length;
+  if (rcEl) rcEl.textContent = invSelectMode ? Object.keys(invSelected).length : pendingFree.length;
+  renderInvSetCards();
+  renderInvSellerOptions();
+  renderInvCatOptions();
   renderInvoiceList();
+}
+function setInvTab(tab) {
+  invTab = tab;
+  renderInvoicePage();
+}
+function toggleInvSearch() {
+  var wrap = document.getElementById('invSearchWrap');
+  var show = wrap.style.display !== 'flex';
+  wrap.style.display = show ? 'flex' : 'none';
+  if (show) { document.getElementById('invSearchInput').focus(); }
+}
+function onInvSearch() {
+  invSearchText = (document.getElementById('invSearchInput').value || '').trim();
+  renderInvoiceList();
+}
+function clearInvSearch() {
+  document.getElementById('invSearchInput').value = '';
+  invSearchText = '';
+  renderInvoiceList();
+}
+function onInvFilterChange() { renderInvoiceList(); }
+function openInvMoreFilter() {
+  // 更多筛选：状态快速切换 + 提示（排序/抬头/归类在筛选栏）
+  showToast('可在筛选栏选择排序、抬头、归类');
+}
+function pickInvoicePhoto() {
+  var inp = document.getElementById('invPhotoInput');
+  if (inp) inp.click();
+}
+function openInvMoreMenu() { document.getElementById('invMoreOverlay').classList.add('show'); }
+function closeInvMoreMenu(e) {
+  if (e && e.target !== document.getElementById('invMoreOverlay')) return;
+  document.getElementById('invMoreOverlay').classList.remove('show');
+}
+// 报销集卡片（虚线框，最新 4 个）
+function renderInvSetCards() {
+  var el = document.getElementById('invSetCards');
+  if (!el) return;
+  var sets = reimburseSets.slice().sort(function(a, b) { return (b.created || 0) - (a.created || 0); }).slice(0, 4);
+  if (sets.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = sets.map(function(s) {
+    var n = setInvoiceCount(s), t = setInvoiceTotal(s);
+    var thumbs = '';
+    for (var i = 0; i < Math.min(3, n); i++) thumbs += '<span class="st-thumb"></span>';
+    if (n > 3) thumbs += '<span class="st-thumb more">+' + (n - 3) + '</span>';
+    return '<div class="inv-set-card" onclick="openInvSetDetail(\'' + s.id + '\')">' +
+      '<span class="inv-set-check" onclick="event.stopPropagation();toggleSetPick(\'' + s.id + '\')"></span>' +
+      '<div class="inv-set-body">' +
+        '<div class="inv-set-name">' + escHtml(s.name) + '<span class="inv-set-count">' + n + ' 个消费项</span></div>' +
+        '<div class="inv-set-amount">' + formatMoney(t) + '<em> 元</em></div>' +
+      '</div>' +
+      '<div class="inv-set-thumbs">' + thumbs + '</div>' +
+    '</div>';
+  }).join('');
+}
+let _setPickSel = {};
+function toggleSetPick(setId) {
+  if (_setPickSel[setId]) delete _setPickSel[setId];
+  else _setPickSel[setId] = true;
+  renderInvSetCards();
+}
+// 抬头（销售方）下拉选项
+function renderInvSellerOptions() {
+  var sel = document.getElementById('invSellerSel');
+  if (!sel) return;
+  var sellers = {};
+  invoices.forEach(function(i) { if (i.seller) sellers[i.seller] = 1; });
+  var names = Object.keys(sellers).sort();
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">抬头：全部</option>' + names.map(function(n) {
+    return '<option value="' + escHtml(n).replace(/"/g, '&quot;') + '">' + escHtml(n) + '</option>';
+  }).join('');
+  if (names.indexOf(cur) >= 0) sel.value = cur;
 }
 function fmtMoneyShort(n) {
   // 只保留「万」缩写，去掉 k
@@ -2998,13 +3187,35 @@ function fmtMoneyShort(n) {
 function renderInvoiceList() {
   const listEl = document.getElementById('invList');
   let filtered = invoices.slice();
-  if (invFilter === 'pending') filtered = filtered.filter(i => i.status !== 1);
-  else if (invFilter === 'done') filtered = filtered.filter(i => i.status === 1);
-  else if (invFilter !== 'all') filtered = filtered.filter(i => i.cat === invFilter);
-  filtered.sort((a, b) => (b.date + '').localeCompare(a.date + '') || b.id - a.id);
+  // 状态视图
+  if (invTab === 'pending') filtered = filtered.filter(i => i.status !== 1 && !isInvInAnySet(i.id));
+  else if (invTab === 'processing') filtered = filtered.filter(i => i.status !== 1 && isInvInAnySet(i.id));
+  else if (invTab === 'done') filtered = filtered.filter(i => i.status === 1);
+  // 搜索
+  if (invSearchText) {
+    var q = invSearchText.toLowerCase();
+    filtered = filtered.filter(function(i) {
+      return (String(i.seller || '') + ' ' + String(i.number || '') + ' ' + String(i.note || '')).toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  // 抬头筛选
+  var sellerF = document.getElementById('invSellerSel');
+  if (sellerF && sellerF.value) filtered = filtered.filter(i => i.seller === sellerF.value);
+  // 归类筛选
+  var catF = document.getElementById('invCatSel');
+  if (catF && catF.value) filtered = filtered.filter(i => i.cat === catF.value);
+  // 排序
+  var sortF = document.getElementById('invSortSel');
+  var sortMode = sortF ? sortF.value : 'import-desc';
+  if (sortMode === 'amount-desc') filtered.sort((a, b) => b.amount - a.amount || (b.date + '').localeCompare(a.date + ''));
+  else if (sortMode === 'date-asc') filtered.sort((a, b) => (a.date + '').localeCompare(b.date + '') || a.id - b.id);
+  else filtered.sort((a, b) => (b.date + '').localeCompare(a.date + '') || b.id - a.id);
 
   if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="inv-empty">' + ico('note') + '<div style="font-size:14px;font-weight:600;margin-bottom:4px">暂无发票</div><div style="font-size:12px">点击「添加发票」录入，或从报销单开始管理</div></div>';
+    const hint = invTab === 'pending' ? '点击右上角「＋」录入发票，或底部收票邮箱自动归集'
+      : invTab === 'processing' ? '在发票详情点「报销集」加入，这里汇总报销中的发票'
+      : '没有已报销的发票';
+    listEl.innerHTML = '<div class="inv-empty">' + ico('note') + '<div style="font-size:14px;font-weight:600;margin-bottom:4px">暂无发票</div><div style="font-size:12px">' + hint + '</div></div>';
     return;
   }
   listEl.innerHTML = filtered.map(iv => {
@@ -3772,7 +3983,15 @@ function toggleSelectMode() {
   document.body.classList.toggle('inv-select-mode', invSelectMode);
   const bar = document.getElementById('invReimburseBar');
   bar.style.display = invSelectMode ? 'flex' : 'none';
-  document.getElementById('reimburseBtn').innerHTML = invSelectMode ? '取消选择' : '报销单<span class="cnt" id="reimburseCnt"></span>';
+  const rb = document.getElementById('reimburseBtn');
+  if (rb) {
+    var cnt = rb.querySelector('.inv-more-cnt');
+    if (!cnt) { cnt = document.createElement('span'); cnt.className = 'inv-more-cnt'; rb.appendChild(cnt); }
+    cnt.textContent = invSelectMode ? '' : '0';
+    // 只改文字节点，保留图标结构
+    var txt = Array.prototype.filter.call(rb.childNodes, function(n) { return n.nodeType === 3; });
+    txt.forEach(function(n) { n.textContent = invSelectMode ? '取消选择' : '报销单'; });
+  }
   renderInvoicePage();
   if (invSelectMode) showToast('点击发票勾选，可多选');
 }
@@ -4060,7 +4279,13 @@ function markSelectedClaimed() {
     document.body.classList.remove('inv-select-mode');
     invSelectMode = false;
     document.getElementById('invReimburseBar').style.display = 'none';
-    document.getElementById('reimburseBtn').innerHTML = '报销单<span class="cnt" id="reimburseCnt"></span>';
+    const rb = document.getElementById('reimburseBtn');
+    if (rb) {
+      var cnt = rb.querySelector('.inv-more-cnt');
+      if (cnt) cnt.textContent = '0';
+      var txt = Array.prototype.filter.call(rb.childNodes, function(n) { return n.nodeType === 3; });
+      txt.forEach(function(n) { n.textContent = '报销单'; });
+    }
   }
   closeDetailModal();
   renderInvoicePage();
@@ -4262,6 +4487,9 @@ function refreshInvMailCnt() {
   var n = _invMailList.filter(function(m) { return done.indexOf(m.id) < 0; }).length;
   el.style.display = n > 0 ? 'inline-flex' : 'none';
   el.textContent = n > 9 ? '9+' : n;
+  // 更多菜单里的收件箱徽标同步
+  var el2 = document.getElementById('invMailCnt2');
+  if (el2) { el2.style.display = n > 0 ? 'inline-block' : 'none'; el2.textContent = n > 9 ? '9+' : n; }
 }
 // ── 邮件自动识别导入：收件箱里能识别的附件自动入库（无需手动操作）──
 var _autoImportRunning = false;
@@ -4806,14 +5034,23 @@ function toggleTodaySetFromSheet() {
   toggleTodaySet(_todaySheetInvId);
   renderTodaySetSheet();
 }
-document.getElementById('invFilterBar').addEventListener('click', function(e) {
-  const chip = e.target.closest('.filter-chip');
-  if (!chip) return;
-  document.querySelectorAll('#invFilterBar .filter-chip').forEach(c => c.classList.remove('active'));
-  chip.classList.add('active');
-  invFilter = chip.dataset.filter;
-  renderInvoiceList();
+// 状态 Tab 切换
+document.getElementById('invStateTabs').addEventListener('click', function(e) {
+  var tab = e.target.closest('.inv-state-tab');
+  if (!tab) return;
+  invTab = tab.dataset.invtab;
+  renderInvoicePage();
 });
+// 归类下拉选项（动态填充）
+function renderInvCatOptions() {
+  var sel = document.getElementById('invCatSel');
+  if (!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">归类：全部</option>' + INVOICE_CATS.map(function(c) {
+    return '<option value="' + c.name + '">' + c.name + '</option>';
+  }).join('');
+  if (cur) sel.value = cur;
+}
 // 启动时拉取发票云数据（Worker 部署后生效；失败静默）
 syncInvoicesFromCloud().then(function() {
   if (document.getElementById('page-invoice').classList.contains('active')) renderInvoicePage();
