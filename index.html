@@ -1370,7 +1370,7 @@ body {
         <div class="imr-item">① 邮件含 <b>PDF / OFD</b> 发票附件 → 自动提取入库</div>
         <div class="imr-item">② 无附件但正文含 <b>发票链接</b> → 自动下载提取</div>
         <div class="imr-item">③ 无附件无链接但有 <b>二维码</b> → 尝试识别</div>
-        <div class="imr-item">④ 图片收据 / 消费截屏 → 点击邮件手动导入</div>
+        <div class="imr-item">④ 图片收据 / 消费截屏 → 点击邮件<b>手动导入</b></div>
       </div>
       <div id="invMailList"></div>
     </div>
@@ -4887,6 +4887,9 @@ async function autoImportMails(silent) {
           (/\.(png|gif)$/i.test(attNameLower) || /(logo|seal|qr|icon|wechat|weixin|二维码)/.test(attNameLower));
         var isDeco = att.type && att.type.indexOf('image/') === 0 && decoHits;
         if (isDeco && (att.size || 0) < 30000) { continue; } // 装饰图直接跳过，不计数
+        // 规则4对齐：图片形式的收据/消费截屏等非标发票【不自动识别】，留给用户手动导入
+        // （发票盒子规则：图片手动导入；自动 OCR 识别不到反而误报，已去掉）
+        if (att.type && att.type.indexOf('image/') === 0) { unknown++; continue; }
         var file;
         try {
           file = new File([base64ToBlob(att.base64, att.type || 'application/octet-stream')], att.name || ('附件' + (j + 1)), { type: att.type || 'application/octet-stream' });
@@ -4948,7 +4951,8 @@ async function autoImportMails(silent) {
       if (failed) msg.push(failed + ' 张需人工处理');
       if (msg.length) {
         var tip = '';
-        if (failed > 0 && !getZhipuKey()) tip = '（图片版发票需智谱 Key 才能识别）';
+        // 规则4：图片收据/截屏不自动识别，留给用户手动导入（不再要求智谱 Key）
+        if (failed > 0) tip = '（图片附件请手动导入）';
         showToast('📮 收件箱：' + msg.join('，') + tip);
       }
     }
