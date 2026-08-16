@@ -865,15 +865,7 @@ body {
 .inv-page-head .inv-back:active{transform:scale(0.92)}
 .inv-page-head .inv-page-title{flex:1;text-align:center;font-size:17px;font-weight:700;letter-spacing:1px}
 .inv-page-head .inv-page-spacer{width:36px;flex-shrink:0}
-/* 首页发票入口卡片 */
-.invoice-entry{display:flex;align-items:center;gap:12px;margin:2px 16px 0;padding:13px 15px;background:rgba(255,255,255,0.55);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:var(--glass-border);border-radius:20px;box-shadow:var(--glass-shadow);cursor:pointer;touch-action:manipulation}
-.invoice-entry:active{transform:scale(0.98)}
-.inv-entry-icon{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#7B93FF,var(--primary));color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.inv-entry-icon svg{width:22px;height:22px}
-.inv-entry-main{flex:1;min-width:0}
-.inv-entry-main .t{font-size:15px;font-weight:700}
-.inv-entry-main .s{font-size:12px;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.inv-entry-arrow{color:var(--text-light);font-size:22px;flex-shrink:0}
+/* 发票页（含首页快捷入口） */
 /* ── 收件箱 ── */
 .inv-mailbox-btn{flex:0 0 auto;padding:0 12px;font-size:13px}
 .inv-mailbox-btn .cnt{background:var(--danger);color:#fff;border-radius:9px;font-size:11px;min-width:18px;height:18px;line-height:18px;padding:0 4px;font-weight:700}
@@ -952,14 +944,6 @@ body {
       <button class="quick-btn income" onclick="openModal('income')">
         + 记收入<span class="acct-label" id="incomeAcctLabel"></span>
       </button>
-    </div>
-    <div class="invoice-entry" onclick="openInvoicePage()">
-      <span class="inv-entry-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h14v17l-2.2-1.5L14.5 20.5 12 19l-2.5 1.5L7.2 19 5 20.5v-17z"/><path d="M9 8.2h6M9 11.2h6M9 14.2h4"/></svg></span>
-      <div class="inv-entry-main">
-        <div class="t">发票报销</div>
-        <div class="s">收票邮箱自动归集 · 报销单 · 一键排版打印</div>
-      </div>
-      <span class="inv-entry-arrow">›</span>
     </div>
     <div id="todayCard"></div>
     <div class="section-title">
