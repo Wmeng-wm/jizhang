@@ -3792,9 +3792,9 @@ async function ocrInvoiceBase64(base64, apiKey) {
     var amount = parseFloat(String(obj.amount || '').replace(/,/g, '')) || 0;
     if (!number && !amount) {
       window._lastOcrError = '图片模糊或非标准发票';
-      // 自动导入场景静默（收件箱自动识别失败只是跳过该附件，最后由汇总 toast 提示），
-      // 手动识别才弹详细提示，避免误报「图片模糊」打扰
-      if (!window._autoImportRunning) showToast('识别结果为空（图片模糊或非标准发票，请用高清版文件导入或拍照识别）');
+      // 手动识别（点邮件逐张处理）也弹中性提示——宣传图/二维码/非发票图识别失败是常态，
+      // 不再误导性地说「图片模糊」，引导用户手动填写或删除该附件
+      if (!window._autoImportRunning) showToast('未识别到发票信息（可能不是发票，如宣传图/二维码），可手动填写或删除该附件');
       return null;
     }
     return {
@@ -4996,12 +4996,20 @@ async function processInvMail(id) {
     }
     return;
   }
-  // 收集所有可用附件到队列
+  // 收集所有可用附件到队列（与自动导入同一套过滤：HTML 伪装/小图/宣传横幅不进入逐张处理）
   var queue = [];
   for (var i = 0; i < atts.length; i++) {
     var att = atts[i];
     if (att.oversized) { showToast('附件过大已截断：' + (att.name || '')); continue; }
     if (!att.base64) { continue; }
+    var attNameLower = (att.name || '').toLowerCase();
+    // HTML 伪装的附件跳过（Worker 链接下载可能拿到登录页/SPA 网页）
+    if ((att.type || '').indexOf('text/html') >= 0) { continue; }
+    // <2KB 小图跳过（装饰图）
+    if (att.type && att.type.indexOf('image/') === 0 && (att.size || 0) < 2000) { continue; }
+    // 宣传横幅图跳过（宽高比 ≥3.5，如 961x127 品牌宣传图；用 Worker 已剔除非首次，这里兜底本地判断）
+    if (att.type && att.type.indexOf('image/') === 0 && (att.size || 0) < 300000 &&
+        /(logo|seal|banner|wechat|weixin|二维码)/.test(attNameLower) && (att.size || 0) < 30000) { continue; }
     try {
       var blob = base64ToBlob(att.base64, att.type || 'application/octet-stream');
       var fname = att.name || ('附件' + (i + 1));
