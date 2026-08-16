@@ -1006,6 +1006,12 @@ body {
 .inv-mail-tag.new{background:rgba(255,107,107,0.14);color:var(--danger)}
 .inv-mail-tag.done{background:rgba(120,130,180,0.14);color:var(--text-secondary)}
 .inv-mail-tag.none{background:rgba(120,130,180,0.14);color:var(--text-secondary)}
+.inv-mail-tag.link{background:rgba(79,110,247,0.14);color:var(--primary)}
+/* 收票规则说明 */
+.inv-mail-rules{margin:10px 0;padding:12px 14px;border-radius:14px;background:rgba(79,110,247,0.07);border:0.5px solid rgba(79,110,247,0.2)}
+.inv-mail-rules .imr-title{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:6px}
+.inv-mail-rules .imr-item{font-size:12px;color:var(--text-secondary);line-height:1.9}
+.inv-mail-rules .imr-item b{color:var(--text);font-weight:600}
 .inv-mail-empty{text-align:center;padding:36px 20px;color:var(--text-light);font-size:13px;line-height:1.7}
 .inv-mail-empty .ico{width:44px;height:44px;opacity:.35;margin-bottom:10px}
 .inv-mail-tip{font-size:11px;color:var(--text-secondary);background:rgba(79,110,247,0.08);border:0.5px solid rgba(79,110,247,0.2);border-radius:12px;padding:10px 12px;line-height:1.7;margin-bottom:10px}
@@ -1359,6 +1365,13 @@ body {
     <div class="modal-title">收票收件箱</div>
     <div class="inv-form" style="max-height:58vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
       <div class="inv-mail-tip" id="invMailTip"></div>
+      <div class="inv-mail-rules">
+        <div class="imr-title">收票规则（自动识别）</div>
+        <div class="imr-item">① 邮件含 <b>PDF / OFD</b> 发票附件 → 自动提取入库</div>
+        <div class="imr-item">② 无附件但正文含 <b>发票链接</b> → 自动下载提取</div>
+        <div class="imr-item">③ 无附件无链接但有 <b>二维码</b> → 尝试识别</div>
+        <div class="imr-item">④ 图片收据 / 消费截屏 → 点击邮件手动导入</div>
+      </div>
       <div id="invMailList"></div>
     </div>
     <div style="display:flex;gap:10px;margin-top:14px">
@@ -3551,8 +3564,9 @@ async function importInvoicePDF(file) {
     showToast(e && e.message && e.message.indexOf('联网') >= 0 ? e.message : 'PDF 解析失败，请检查文件');
   }
 }
-// 通用识别：XML / PDF / 图片 → 返回 {number,amount,tax,date,seller,type,note} 或 null
-async function recognizeInvoiceFile(file) {
+// 通用识别：XML / PDF / OFD / 图片 → 返回 {number,amount,tax,date,seller,type,note} 或 null
+// ofdText 参数：Worker 端已解压 OFD 内嵌 XML 得到的票面文本（规则1：OFD 数电票自动提取）
+async function recognizeInvoiceFile(file, ofdText) {
   var lower = String(file.name || '').toLowerCase();
   var type = file.type || '';
   try {
@@ -3564,6 +3578,15 @@ async function recognizeInvoiceFile(file) {
     if (lower.endsWith('.pdf') || type.indexOf('pdf') >= 0) {
       return await recognizePDFFile(file);
     }
+    if (lower.endsWith('.ofd') || type.indexOf('ofd') >= 0 || (type === 'application/octet-stream' && /\.ofd$/i.test(lower))) {
+      // OFD 数电票：优先用 Worker 解压出的文本；本地文件则尝试 ZIP 解压
+      var ofdParse = ofdText || await parseOfdLocal(file);
+      if (ofdParse) {
+        var od = parseInvoiceText(ofdParse);
+        if (od && (od.number || parseFloat(od.amount) > 0)) return od;
+      }
+      return null;
+    }
     if (type.indexOf('image/') === 0) {
       var key = getZhipuKey();
       if (!key) return null;
@@ -3571,6 +3594,67 @@ async function recognizeInvoiceFile(file) {
     }
   } catch (e) { console.warn('识别失败', e); }
   return null;
+}
+// 本地 OFD 文件解析：ZIP 容器内 XML 文本提取（与 Worker 端 extractOfdText 同逻辑）
+async function parseOfdLocal(file) {
+  try {
+    var buf = new Uint8Array(await file.arrayBuffer());
+    // 简易 ZIP 中央目录扫描：只找 .xml 条目并解压（store 或 deflate）
+    var texts = [];
+    var dv = new DataView(buf.buffer);
+    // 从文件尾找 EOCD
+    var eocd = -1;
+    for (var i = buf.length - 22; i >= 0 && i > buf.length - 66000; i--) {
+      if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x05 && buf[i + 3] === 0x06) { eocd = i; break; }
+    }
+    if (eocd < 0) return '';
+    var cdCount = dv.getUint16(eocd + 10, true);
+    var cdOffset = dv.getUint32(eocd + 16, true);
+    var pos = cdOffset;
+    for (var n = 0; n < cdCount && n < 200; n++) {
+      if (buf[pos] !== 0x50 || buf[pos + 1] !== 0x4b || buf[pos + 2] !== 0x01 || buf[pos + 3] !== 0x02) break;
+      var method = dv.getUint16(pos + 10, true);
+      var compSize = dv.getUint32(pos + 20, true);
+      var uncompSize = dv.getUint32(pos + 24, true);
+      var nameLen = dv.getUint16(pos + 28, true);
+      var extraLen = dv.getUint16(pos + 30, true);
+      var commentLen = dv.getUint16(pos + 32, true);
+      var localOffset = dv.getUint32(pos + 42, true);
+      var name = '';
+      for (var c = 0; c < nameLen; c++) name += String.fromCharCode(buf[pos + 46 + c]);
+      if (/\.xml$/i.test(name)) {
+        // 读本地文件头定位数据
+        var lo = localOffset;
+        var ln = dv.getUint16(lo + 26, true);
+        var le = dv.getUint16(lo + 28, true);
+        var dataStart = lo + 30 + ln + le;
+        var raw = buf.subarray(dataStart, dataStart + compSize);
+        var decoded;
+        if (method === 0) decoded = raw;
+        else if (method === 8) decoded = await inflateRaw(raw);
+        else continue;
+        if (decoded && decoded.length > 10) {
+          var s = new TextDecoder('utf-8').decode(decoded)
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+            .replace(/&#\d+;/g, ' ')
+            .replace(/\s+/g, ' ').trim();
+          if (s.length > 2) texts.push(s);
+        }
+      }
+      pos += 46 + nameLen + extraLen + commentLen;
+    }
+    return texts.join(' ').slice(0, 12000);
+  } catch (e) { console.warn('OFD 本地解析失败', e); return ''; }
+}
+// 极简 inflate (raw deflate) —— 仅支持无动态 Huffman 的块（OFD XML 通常用固定压缩）
+function inflateRaw(data) {
+  // 用 DecompressionStream（现代浏览器支持 deflate-raw）
+  try {
+    var ds = new DecompressionStream('deflate-raw');
+    var stream = new Blob([data]).stream().pipeThrough(ds);
+    return new Response(stream).arrayBuffer().then(function(b) { return new Uint8Array(b); });
+  } catch (e) { return null; }
 }
 // 从 PDF 文本层提取发票字段
 function parseInvoiceText(text) {
@@ -3692,7 +3776,7 @@ async function ocrInvoiceBase64(base64, apiKey) {
       amount: amount,
       tax: parseFloat(String(obj.tax || '').replace(/,/g, '')) || 0,
       date: obj.date || '', seller: obj.seller || '',
-      type: obj.type || ''
+      type: obj.type || '', note: String(obj.note || '').trim()
     };
   } catch (e) {
     console.warn('OCR 失败', e);
@@ -4679,9 +4763,11 @@ function renderInvMailList() {
   listEl.innerHTML = _invMailList.map(function(m) {
     var isDone = done.indexOf(m.id) >= 0;
     var attTxt = (m.attachments || []).map(function(a) { return a.name; }).join('、') || '无附件';
+    var hasLink = m.body && /https?:\/\//i.test(m.body);
     var tag = isDone
       ? '<span class="inv-mail-tag done">已处理</span>'
       : (m.attachCount > 0 ? '<span class="inv-mail-tag new">' + m.attachCount + ' 附件</span>' : '<span class="inv-mail-tag none">无附件</span>');
+    if (!isDone && hasLink && m.attachCount === 0) tag += '<span class="inv-mail-tag link">含链接</span>';
     // 支持左滑删除（复用全局 swipe-container 机制）
     return '<div class="swipe-container" data-id="' + m.id + '" data-type="mail" style="margin:0 0 8px;border-radius:14px;background:#fff">' +
       '<div class="swipe-content" style="border-radius:14px;background:#fff">' +
@@ -4752,7 +4838,13 @@ async function autoImportMails(silent) {
       var m = data.mails[i];
       if (getInvMailDone().indexOf(m.id) >= 0) continue;
       var atts = m.attachments || [];
-      if (atts.length === 0) { markInvMailDone(m.id); continue; }
+      // 规则2/3：无附件但有正文链接/二维码的邮件，保留在收件箱人工处理（不自动标记完成）
+      if (atts.length === 0) {
+        // 若 Worker 已尝试从链接提取，这里附件就有了；真没有 → 留在收件箱
+        if (m.body && /https?:\/\//i.test(m.body)) continue; // 含链接 → 保留人工处理
+        markInvMailDone(m.id);
+        continue;
+      }
       // 先分类所有附件：发票 / 行程单 / 无法识别
       var invoiceAtts = [], tripAtts = [], unknown = 0;
       for (var j = 0; j < atts.length; j++) {
@@ -4763,7 +4855,7 @@ async function autoImportMails(silent) {
           file = new File([base64ToBlob(att.base64, att.type || 'application/octet-stream')], att.name || ('附件' + (j + 1)), { type: att.type || 'application/octet-stream' });
         } catch (e) { unknown++; continue; }
         var rec = null;
-        try { rec = await recognizeInvoiceFile(file); } catch (e) { rec = null; }
+        try { rec = await recognizeInvoiceFile(file, att.ofdText); } catch (e) { rec = null; }
         if (rec && rec.number && parseFloat(rec.amount) > 0) {
           invoiceAtts.push({ att: att, file: file, rec: rec });
         } else if (/行程单|行程|itinerary|trip|报销凭证/i.test(att.name || '')) {
@@ -4858,7 +4950,15 @@ async function processInvMail(id) {
   var mail = _invMailList.find(function(m) { return m.id === id; });
   if (!mail) return;
   var atts = mail.attachments || [];
-  if (atts.length === 0) { showToast('该邮件没有附件'); return; }
+  if (atts.length === 0) {
+    // 规则2/3：无附件但有正文链接 → 提示用户（链接已由 Worker 尝试下载，若无附件说明链接不可达）
+    if (mail.body && /https?:\/\//i.test(mail.body)) {
+      showToast('该邮件无附件（正文含链接但未能自动下载），可打开原邮件手动保存发票');
+    } else {
+      showToast('该邮件没有附件');
+    }
+    return;
+  }
   // 收集所有可用附件到队列
   var queue = [];
   for (var i = 0; i < atts.length; i++) {
@@ -4868,7 +4968,7 @@ async function processInvMail(id) {
     try {
       var blob = base64ToBlob(att.base64, att.type || 'application/octet-stream');
       var fname = att.name || ('附件' + (i + 1));
-      queue.push({ blob: blob, name: fname, type: att.type || 'application/octet-stream', size: blob.size });
+      queue.push({ blob: blob, name: fname, type: att.type || 'application/octet-stream', size: blob.size, ofdText: att.ofdText || '' });
     } catch (e) { console.warn('附件转换失败', e); }
   }
   if (queue.length === 0) { showToast('该邮件没有可用附件'); return; }
@@ -4897,6 +4997,13 @@ async function loadNextMailAttachment() {
       showToast('XML 未识别到发票字段，请手动填写');
     } else if (lower.endsWith('.pdf') || (att.type || '').indexOf('pdf') >= 0) {
       await importInvoicePDF(file);
+    } else if (lower.endsWith('.ofd') || (att.type || '').indexOf('ofd') >= 0) {
+      // OFD 数电票：优先 Worker 解压文本，其次本地解压
+      showToast('正在解析 OFD…');
+      var ofdTxt = att.ofdText || await parseOfdLocal(file);
+      var od = ofdTxt ? parseInvoiceText(ofdTxt) : null;
+      if (od && (od.number || parseFloat(od.amount) > 0)) { fillInvForm(od); showToast('已识别（OFD），请核对后保存'); return; }
+      showToast('OFD 未识别到发票字段，请手动填写');
     } else if ((att.type || '').indexOf('image/') === 0) {
       var key = getZhipuKey();
       if (key) {
