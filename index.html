@@ -924,6 +924,73 @@ body {
 .inv-more-ico.gear{background:rgba(120,130,180,0.14);color:var(--text-secondary)}
 .inv-more-ico.csv{background:rgba(52,199,89,0.14);color:#248A3D}
 .inv-more-cnt{margin-left:auto;background:var(--primary);color:#fff;border-radius:9px;font-size:12px;min-width:20px;height:20px;line-height:20px;padding:0 6px;font-weight:700;text-align:center}
+/* ── 报销集详情（发票盒子风格） ── */
+.inv-setdetail-hero{background:linear-gradient(180deg,rgba(255,159,10,0.16),rgba(255,255,255,0.55));border:1px dashed rgba(255,159,10,0.45);border-radius:18px;padding:16px;margin-bottom:10px}
+.inv-setdetail-hero .sd-top{display:flex;align-items:center;gap:8px}
+.inv-setdetail-hero .sd-icon{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#FFB75E,#FF9F0A);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.inv-setdetail-hero .sd-icon .ico{width:20px;height:20px}
+.inv-setdetail-hero .sd-name{flex:1;min-width:0;font-size:16px;font-weight:700;color:#B45309;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inv-setdetail-hero .sd-date{font-size:11px;color:#C2761A;background:rgba(255,159,10,0.12);padding:2px 8px;border-radius:8px;flex-shrink:0}
+.inv-setdetail-hero .sd-amount{font-size:26px;font-weight:800;color:#B45309;margin-top:10px}
+.inv-setdetail-hero .sd-amount em{font-style:normal;font-size:12px;font-weight:500;color:#C2761A}
+.inv-setdetail-hero .sd-meta{display:flex;gap:12px;margin-top:6px;font-size:12px;color:#B45309}
+.inv-setdetail-hero .sd-meta span{display:flex;align-items:center;gap:4px}
+.sd-missing{display:flex;align-items:center;gap:8px;margin:10px 0;padding:10px 12px;border-radius:12px;background:rgba(255,107,107,0.12);color:#C0392B;font-size:13px;font-weight:600}
+.sd-missing .ico{width:16px;height:16px;flex-shrink:0}
+/* 分类展开表格 */
+.sd-cat-table{margin:10px 0;border-radius:14px;overflow:hidden;border:var(--glass-border);background:rgba(255,255,255,0.55)}
+.sd-cat-row{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:0.5px solid rgba(120,130,180,0.12);cursor:pointer;touch-action:manipulation}
+.sd-cat-row:last-child{border-bottom:none}
+.sd-cat-row:active{background:rgba(255,159,10,0.06)}
+.sd-cat-row .sc-icon{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sd-cat-row .sc-icon .ico{width:18px;height:18px}
+.sd-cat-row .sc-name{flex:1;min-width:0;font-size:14px;font-weight:600}
+.sd-cat-row .sc-count{font-size:11px;color:var(--text-secondary);background:rgba(120,130,180,0.12);padding:2px 8px;border-radius:8px;flex-shrink:0}
+.sd-cat-row .sc-amt{font-size:14px;font-weight:700;flex-shrink:0}
+.sd-cat-row .sc-arrow{color:var(--text-tertiary);font-size:14px;transition:transform .2s;flex-shrink:0}
+.sd-cat-row.open .sc-arrow{transform:rotate(90deg)}
+.sd-cat-detail{display:none;background:rgba(255,255,255,0.45);border-top:0.5px dashed rgba(120,130,180,0.15)}
+.sd-cat-row.open + .sd-cat-detail{display:block}
+.sd-cat-detail .scd-item{display:flex;align-items:center;gap:8px;padding:9px 14px 9px 56px;border-bottom:0.5px solid rgba(120,130,180,0.08)}
+.sd-cat-detail .scd-item:last-child{border-bottom:none}
+.sd-cat-detail .scd-main{flex:1;min-width:0}
+.sd-cat-detail .scd-seller{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sd-cat-detail .scd-sub{font-size:11px;color:var(--text-secondary);margin-top:1px}
+.sd-cat-detail .scd-amt{font-size:13px;font-weight:600;flex-shrink:0}
+/* 报销集详情底部工具条 */
+.sd-tools{display:flex;gap:10px;margin-top:12px}
+.sd-tool-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:14px;border:var(--glass-border);background:rgba(255,255,255,0.55);font-size:12px;color:var(--text);cursor:pointer;touch-action:manipulation}
+.sd-tool-btn .ico{width:20px;height:20px;color:var(--primary)}
+.sd-tool-btn.hot{background:linear-gradient(135deg,#FFB75E,#FF9F0A);color:#fff;border:none;box-shadow:0 4px 14px rgba(255,159,10,0.4)}
+.sd-tool-btn.hot .ico{color:#fff}
+.sd-tool-btn:active{transform:scale(0.96)}
+.sd-tool-btn .sd-tb-sub{font-size:10px;color:var(--text-secondary);font-weight:400}
+.sd-tool-btn.hot .sd-tb-sub{color:rgba(255,255,255,0.85)}
+.sd-sumline{display:flex;justify-content:space-between;align-items:center;padding:12px 4px 2px;font-size:13px;color:var(--text-secondary)}
+.sd-sumline .v{font-size:18px;font-weight:800;color:#B45309}
+/* PDF 合集生成面板 */
+.pdfgen-title{font-size:15px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.pdfgen-title .ico{width:18px;height:18px;color:var(--primary)}
+.pdfgen-sec{font-size:12px;color:var(--text-secondary);margin:12px 0 6px;font-weight:600}
+.pdfgen-layouts{display:flex;gap:8px}
+.pdfgen-layout{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border-radius:12px;border:1.5px solid rgba(120,130,180,0.25);background:rgba(255,255,255,0.5);font-size:11px;color:var(--text-secondary);cursor:pointer;touch-action:manipulation}
+.pdfgen-layout.active{border-color:var(--primary);background:rgba(79,110,247,0.1);color:var(--primary);font-weight:600}
+.pdfgen-layout .pg-preview{display:flex;gap:3px}
+.pdfgen-layout .pg-preview .pg-cell{width:26px;height:34px;border-radius:4px;background:linear-gradient(160deg,#DDE6FF,#C3D1FF);border:0.5px solid rgba(79,110,247,0.35)}
+.pdfgen-layout.active .pg-preview .pg-cell{background:linear-gradient(160deg,#7B93FF,#4F6EF7)}
+.pdfgen-layout .pg-cell.multi{width:16px}
+.pdfgen-hd-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;border:var(--glass-border);background:rgba(255,255,255,0.55);margin-bottom:6px}
+.pdfgen-hd-row .l{font-size:13px;font-weight:600}
+.pdfgen-hd-row .s{font-size:11px;color:var(--text-secondary);margin-top:1px}
+.pdfgen-switch{width:46px;height:26px;border-radius:13px;background:rgba(120,130,180,0.3);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;border:none}
+.pdfgen-switch.on{background:linear-gradient(135deg,#7B93FF,var(--primary))}
+.pdfgen-switch::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.pdfgen-switch.on::after{left:23px}
+.pdfgen-cats{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 4px}
+.pdfgen-cat{display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:13px;font-size:12px;border:var(--glass-border);background:rgba(255,255,255,0.5);color:var(--text-secondary);cursor:pointer;white-space:nowrap;touch-action:manipulation}
+.pdfgen-cat.active{background:rgba(79,110,247,0.14);color:var(--primary);border-color:rgba(79,110,247,0.35)}
+.pdfgen-btn{width:100%;margin-top:14px;padding:14px;border:none;border-radius:16px;background:linear-gradient(135deg,#7B93FF,var(--primary));color:#fff;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(79,110,247,0.35)}
+.pdfgen-btn:active{transform:scale(0.98)}
 /* ── 收件箱 ── */
 .inv-mailbox-btn{flex:0 0 auto;padding:0 12px;font-size:13px}
 .inv-mailbox-btn .cnt{background:var(--danger);color:#fff;border-radius:9px;font-size:11px;min-width:18px;height:18px;line-height:18px;padding:0 4px;font-weight:700}
@@ -1343,7 +1410,28 @@ body {
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
     <div class="modal-title">报销集</div>
-    <div class="inv-form" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch" id="invSetDetailContent"></div>
+    <div class="inv-form" style="max-height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch" id="invSetDetailContent"></div>
+  </div>
+</div>
+
+<!-- 报销集添票 Modal -->
+<div class="modal-overlay" id="setAddOverlay" onclick="closeSetAddOutside(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">添票（加入报销集）</div>
+    <div class="inv-form" style="max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch" id="setAddInvList"></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="inv-btn cancel" onclick="closeSetAdd()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF 合集生成 Modal -->
+<div class="modal-overlay" id="pdfGenOverlay" onclick="closePdfGenOutside(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">PDF 合集生成</div>
+    <div class="inv-form" id="pdfGenContent" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
   </div>
 </div>
 
@@ -1440,6 +1528,10 @@ const ICO = {
   key:'<circle cx="8" cy="15" r="4.5"/><path d="M11.5 11.5L20 3M16 7l3 3M13.5 9.5l2 2"/>',
   trash:'<path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0110.5 4h3A1.5 1.5 0 0115 5.5V7"/><path d="M6.5 7l1 13.5h9l1-13.5"/><path d="M10 11v5M14 11v5"/>',
   export:'<path d="M12 15V4.5M7.5 8.5L12 4l4.5 4.5"/><path d="M4 16.5V20a1 1 0 001 1h14a1 1 0 001-1v-3.5"/>',
+  alert:'<path d="M12 3.5L21 20H3l9-16.5z"/><path d="M12 10v4.5M12 17.5v.5"/>',
+  paperclip:'<path d="M9.5 12.5l6-6a3.2 3.2 0 014.5 4.5l-7.5 7.5a5 5 0 01-7-7l7.5-7.5"/><path d="M14.5 9.5l-6 6a2.5 2.5 0 003.5 3.5l7-7"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  check:'<path d="M4.5 12.5l5 5L19.5 7"/>',
   note:'<path d="M6 2.5h8L19 7.5V21a1 1 0 01-1 1H6a1 1 0 01-1-1V3.5a1 1 0 011-1z"/><path d="M14 2.5V7.5h5"/><path d="M8.5 12h7M8.5 15.5h7"/>',
   mail:'<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M3 6.5l9 6.5 9-6.5"/>',
   pin:'<path d="M12 21.5s-7-5.8-7-11.5a7 7 0 0114 0c0 5.7-7 11.5-7 11.5z"/><circle cx="12" cy="9.8" r="2.6"/>',
@@ -3372,22 +3464,24 @@ function loadPdfJs() {
   return _pdfjsPromise;
 }
 // PDF 第一页渲染为图片（详情弹窗内直接展示 PDF 原件）；带超时保护，避免卡死
-async function renderPdfFirstPageAsImage(blob) {
+// scale 参数：2.4=高清PRO（打印用），1.6=普通（详情预览用）
+async function renderPdfFirstPageAsImage(blob, scale) {
+  scale = scale || 1.6;
   var render = (async function() {
     var pdfjsLib = await loadPdfJs();
     var buf = await blob.arrayBuffer();
     var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
     var page = await pdf.getPage(1);
-    var viewport = page.getViewport({ scale: 1.6 });
+    var viewport = page.getViewport({ scale: scale });
     var canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
-    return canvas.toDataURL('image/jpeg', 0.85);
+    return canvas.toDataURL('image/jpeg', 0.9);
   })();
   return Promise.race([
     render,
-    new Promise(function(resolve, reject) { setTimeout(function() { reject(new Error('PDF渲染超时')); }, 9000); })
+    new Promise(function(resolve, reject) { setTimeout(function() { reject(new Error('PDF渲染超时')); }, 12000); })
   ]);
 }
 // PDF 数电票识别（三级策略：内嵌 XML → 文本层 → 图像 OCR），返回识别数据或 null（不操作表单）
@@ -4069,8 +4163,126 @@ function showReimbursementWith(sel, badge) {
     '</div>';
   document.getElementById('detailOverlay').classList.add('show');
 }
-// 打印报销单：新窗口输出「报销单表格（含分类小计）+ 每张发票原件」，
-// 一键排版（一页一张 / 一页两张），A4 打印或「另存为 PDF」
+// ── PDF 合集生成面板（发票盒子风格：单票独占/两票拼/三票拼 + 高清PRO + 费用项筛选）──
+let _pdfGenSetId = null;
+let _pdfGenLayout = 1;      // 1=单票独占 2=两票拼 3=三票拼
+let _pdfGenHd = false;      // 高清画质 PRO
+let _pdfGenCats = {};       // 费用项筛选（空=全部）
+function openPdfGenForSet(setId) {
+  var set = reimburseSets.find(function(s) { return s.id === setId; });
+  if (!set) return;
+  _pdfGenSetId = setId;
+  _pdfGenLayout = parseInt(localStorage.getItem('jizhang_pdf_layout') || '1', 10) || 1;
+  if (_pdfGenLayout < 1 || _pdfGenLayout > 3) _pdfGenLayout = 1;
+  _pdfGenHd = localStorage.getItem('jizhang_pdf_hd') === '1';
+  _pdfGenCats = {};
+  renderPdfGenPanel();
+  document.getElementById('pdfGenOverlay').classList.add('show');
+}
+function renderPdfGenPanel() {
+  var set = reimburseSets.find(function(s) { return s.id === _pdfGenSetId; });
+  if (!set) return;
+  var list = invoices.filter(function(i) { return (set.invoiceIds || []).indexOf(i.id) >= 0; });
+  var total = list.reduce(function(s, i) { return s + i.amount; }, 0);
+  var missing = list.filter(function(i) { return !i.attach; }).length;
+  // 费用项（分类）chips
+  var cats = {};
+  list.forEach(function(i) { cats[i.cat] = 1; });
+  var catNames = Object.keys(cats).sort();
+  var catChips = catNames.map(function(cat) {
+    var c = invCatInfo(cat);
+    return '<span class="pdfgen-cat' + (_pdfGenCats[cat] ? ' active' : '') + '" onclick="togglePdfGenCat(\'' + cat.replace(/'/g, "\\'") + '\')">' + ico(c.icon) + cat + '</span>';
+  }).join('');
+  document.getElementById('pdfGenContent').innerHTML =
+    '<div class="pdfgen-title">' + ico('export') + escHtml(set.name) + ' · PDF 合集</div>' +
+    '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">共 ' + list.length + ' 张发票 · 合计 ' + formatMoney(total) +
+      (missing > 0 ? ' · <span style="color:#C0392B">' + missing + ' 张缺失原件</span>' : '') + '</div>' +
+    '<div class="pdfgen-sec">原件排版</div>' +
+    '<div class="pdfgen-layouts">' +
+      '<div class="pdfgen-layout' + (_pdfGenLayout === 1 ? ' active' : '') + '" onclick="setPdfGenLayout(1)"><span class="pg-preview"><span class="pg-cell"></span></span>单票独占</div>' +
+      '<div class="pdfgen-layout' + (_pdfGenLayout === 2 ? ' active' : '') + '" onclick="setPdfGenLayout(2)"><span class="pg-preview"><span class="pg-cell multi"></span><span class="pg-cell multi"></span></span>两票拼</div>' +
+      '<div class="pdfgen-layout' + (_pdfGenLayout === 3 ? ' active' : '') + '" onclick="setPdfGenLayout(3)"><span class="pg-preview"><span class="pg-cell multi"></span><span class="pg-cell multi"></span><span class="pg-cell multi"></span></span>三票拼</div>' +
+    '</div>' +
+    '<div class="pdfgen-sec">画质</div>' +
+    '<div class="pdfgen-hd-row">' +
+      '<div class="l">高清画质 PRO<span class="s">PDF 渲染分辨率更高，打印更清晰</span></div>' +
+      '<button class="pdfgen-switch' + (_pdfGenHd ? ' on' : '') + '" onclick="togglePdfGenHd()"></button>' +
+    '</div>' +
+    '<div class="pdfgen-sec">费用项筛选（默认全部）</div>' +
+    (catNames.length ? '<div class="pdfgen-cats">' + catChips + '</div>' : '<div style="font-size:12px;color:var(--text-light)">无</div>') +
+    '<button class="pdfgen-btn" onclick="generateSetPdf()">' + ico('export') + ' 生成票据 PDF</button>';
+}
+function setPdfGenLayout(n) {
+  _pdfGenLayout = n;
+  try { localStorage.setItem('jizhang_pdf_layout', String(n)); } catch (e) {}
+  renderPdfGenPanel();
+}
+function togglePdfGenHd() {
+  _pdfGenHd = !_pdfGenHd;
+  try { localStorage.setItem('jizhang_pdf_hd', _pdfGenHd ? '1' : '0'); } catch (e) {}
+  renderPdfGenPanel();
+}
+function togglePdfGenCat(cat) {
+  if (_pdfGenCats[cat]) delete _pdfGenCats[cat];
+  else _pdfGenCats[cat] = true;
+  renderPdfGenPanel();
+}
+function closePdfGen() { document.getElementById('pdfGenOverlay').classList.remove('show'); }
+function closePdfGenOutside(e) { if (e.target === document.getElementById('pdfGenOverlay')) closePdfGen(); }
+// 金额转中文大写（叁仟柒佰玖拾叁元玖角捌分）
+function rmbUpper(n) {
+  var num = Math.round(Math.abs(Number(n) || 0) * 100);
+  if (num === 0) return '零元整';
+  var digits = '零壹贰叁肆伍陆柒捌玖';
+  var units = ['', '拾', '佰', '仟'];
+  var bigUnits = ['', '万', '亿'];
+  var intPart = Math.floor(num / 100), frac = num % 100;
+  var jiao = Math.floor(frac / 10), fen = frac % 10;
+  var intStr = '';
+  if (intPart > 0) {
+    var intGroups = [];
+    var g = intPart;
+    while (g > 0) { intGroups.push(g % 10000); g = Math.floor(g / 10000); }
+    var lastNonZeroGi = -1;
+    for (var gi = intGroups.length - 1; gi >= 0; gi--) {
+      var grp = intGroups[gi];
+      var grpStr = '';
+      var pendingZero = false;
+      for (var pos = 3; pos >= 0; pos--) {
+        var d = Math.floor(grp / Math.pow(10, pos)) % 10;
+        if (d === 0) { if (grpStr) pendingZero = true; }
+        else { if (pendingZero) { grpStr += '零'; pendingZero = false; } grpStr += digits[d] + units[pos]; }
+      }
+      if (grpStr) {
+        // 跨组补零：当前组与上一个非零组之间跳过整组（如 10001 = 壹万零壹），
+        // 或当前组不足千位（如 万+个位，壹万零壹）
+        if (intStr && intStr.slice(-1) === '零') intStr = intStr.slice(0, -1);
+        else if (intStr && (gi < lastNonZeroGi - 1 || grp < 1000)) intStr += '零';
+        intStr += grpStr + bigUnits[gi];
+        lastNonZeroGi = gi;
+      }
+    }
+    intStr = intStr.replace(/零+$/, '');
+  }
+  var result = intPart > 0 ? intStr + '元' : '';
+  if (jiao > 0 && fen > 0) result += digits[jiao] + '角' + digits[fen] + '分';
+  else if (jiao > 0) result += digits[jiao] + '角整';
+  else if (fen > 0) result += '零' + digits[fen] + '分';
+  else result += '整';
+  return (Number(n) < 0 ? '负' : '') + result;
+}
+// 生成 PDF：复用打印窗口，支持三票拼 + 高清
+async function generateSetPdf() {
+  var set = reimburseSets.find(function(s) { return s.id === _pdfGenSetId; });
+  if (!set) return;
+  var list = invoices.filter(function(i) { return (set.invoiceIds || []).indexOf(i.id) >= 0; });
+  if (Object.keys(_pdfGenCats).length > 0) list = list.filter(function(i) { return _pdfGenCats[i.cat]; });
+  if (list.length === 0) { showToast('筛选后没有发票'); return; }
+  closePdfGen();
+  closeInvSetDetail();
+  _rsSel = list;
+  await printReimbursementWithOptions(list, _pdfGenLayout, _pdfGenHd, set.name);
+}
 function buildInvBlocksHTML(attData, layout) {
   function block(a) {
     var s = '<div class="inv-block"><h3>' + (a.seller || a.number) + '（' + (a.name || '') + '）</h3>';
@@ -4094,6 +4306,15 @@ function buildInvBlocksHTML(attData, layout) {
         (i + 1 < attData.length ? '<td class="cell">' + block(attData[i + 1]) + '</td>' : '<td class="cell"></td>') +
         '</tr></table></div>';
     }
+  } else if (layout === 3) {
+    // 一页三张：table 三列
+    for (var i = 0; i < attData.length; i += 3) {
+      h += '<div class="inv-page"><table class="pair tri"><tr>' +
+        '<td class="cell">' + block(attData[i]) + '</td>' +
+        (i + 1 < attData.length ? '<td class="cell">' + block(attData[i + 1]) + '</td>' : '<td class="cell"></td>') +
+        (i + 2 < attData.length ? '<td class="cell">' + block(attData[i + 2]) + '</td>' : '<td class="cell"></td>') +
+        '</tr></table></div>';
+    }
   } else {
     // 一页一张：每张一个 .inv-page，独占一页
     attData.forEach(function(a) { h += '<div class="inv-page">' + block(a) + '</div>'; });
@@ -4101,17 +4322,30 @@ function buildInvBlocksHTML(attData, layout) {
   return h;
 }
 async function printReimbursement() {
+  return printReimbursementWithOptions(null, 0, false, null);
+}
+// 打印报销单：新窗口输出「报销单表格（含分类小计）+ 每张发票原件」
+// layout: 0=读取本地配置 1=一页一张 2=一页两张 3=一页三张；hdOpt=高清PRO；setName=报销集名
+async function printReimbursementWithOptions(selOverride, layoutOpt, hdOpt, setName) {
   try {
-  const sel = getRsSel();
+  const sel = selOverride || getRsSel();
   if (sel.length === 0) { showToast('请先选择发票'); return; }
   const total = sel.reduce((s, i) => s + i.amount, 0);
   const taxTotal = sel.reduce((s, i) => s + (i.tax || 0), 0);
   const sorted = sel.slice().sort((a, b) => (a.date + '').localeCompare(b.date + ''));
   const today = getLocalDateStr();
-  const layout = parseInt(localStorage.getItem('jizhang_print_layout') || '1', 10) === 2 ? 2 : 1;
+  let layout = layoutOpt || 1;
+  if (!layoutOpt) {
+    const saved = parseInt(localStorage.getItem('jizhang_print_layout') || '1', 10);
+    layout = (saved === 2 || saved === 3) ? saved : 1;
+  }
+  if (layout < 1 || layout > 3) layout = 1;
+  const hd = !!hdOpt;
+  const printScale = hd ? 2.4 : 1.6;
+  const title = setName || ('报销单 ' + today);
   const w = window.open('', '_blank');
   if (!w) { showToast('请允许弹窗以打印'); return; }
-  let html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>报销单 ' + today + '</title>';
+  let html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + title + '</title>';
   html += '<style>' +
     '@page { size: A4; margin: 12mm; }' +
     '* { box-sizing: border-box; }' +
@@ -4146,6 +4380,13 @@ async function printReimbursement() {
     '.layout-2 .inv-block img { width: 100%; max-height: 235mm; object-fit: contain; display: block; }' +
     '.layout-2 .inv-block embed { width: 100%; max-height: 235mm; border: 1px solid #ddd; }' +
     '.layout-2 .inv-block pre { font-size: 9px; white-space: pre-wrap; word-break: break-all; background: #fafafa; border: 1px solid #ddd; padding: 8px; margin: 0; max-height: 235mm; overflow: hidden; }' +
+    // 一页三张：三列并排，每列更窄
+    '.inv-page table.pair.tri td.cell { width: 33.33%; padding: 0 5px; }' +
+    '.layout-3 .inv-block img { width: 100%; max-height: 235mm; object-fit: contain; display: block; }' +
+    '.layout-3 .inv-block embed { width: 100%; max-height: 235mm; border: 1px solid #ddd; }' +
+    '.layout-3 .inv-block pre { font-size: 8px; white-space: pre-wrap; word-break: break-all; background: #fafafa; border: 1px solid #ddd; padding: 6px; margin: 0; max-height: 235mm; overflow: hidden; }' +
+    '.layout-3 .inv-block h3 { font-size: 10px; }' +
+    '.layout-3 .inv-block .meta { font-size: 8px; }' +
     '.layout-bar { position: sticky; top: 0; z-index: 10; background: #f6f7fb; padding: 10px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e3e5ec; font-size: 13px; color: #555; flex-wrap: wrap; }' +
     '.layout-bar .seg { display: flex; background: #e8eaf2; border-radius: 10px; padding: 3px; gap: 2px; }' +
     '.layout-bar .seg button { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; color: #666; }' +
@@ -4156,15 +4397,17 @@ async function printReimbursement() {
   // 排版切换栏（屏幕上可切换，打印时隐藏）
   html += '<div class="layout-bar">原件排版：' +
     '<div class="seg">' +
-      '<button id="lay1" class="' + (layout === 1 ? 'active' : '') + '" onclick="__setLayout(1)">一页一张</button>' +
-      '<button id="lay2" class="' + (layout === 2 ? 'active' : '') + '" onclick="__setLayout(2)">一页两张</button>' +
+      '<button id="lay1" class="' + (layout === 1 ? 'active' : '') + '" onclick="__setLayout(1)">单票独占</button>' +
+      '<button id="lay2" class="' + (layout === 2 ? 'active' : '') + '" onclick="__setLayout(2)">两票拼</button>' +
+      '<button id="lay3" class="' + (layout === 3 ? 'active' : '') + '" onclick="__setLayout(3)">三票拼</button>' +
     '</div>' +
+    '<label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#666;cursor:pointer"><input type="checkbox" id="hdPro" ' + (hd ? 'checked' : '') + ' onchange="__setHd(this.checked)">高清PRO</label>' +
     '<span class="scale-warn">⚠ 打印/另存为 PDF 时，缩放请保持 100%</span>' +
     '<button onclick="window.close()" style="margin-left:auto;border:none;background:#e8eaf2;padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer;color:#333">✕ 关闭</button>' +
     '</div>';
   html += '<div id="printDiag" style="padding:8px 14px;font-size:12px;color:#e67e22;background:#fef9e7;border-bottom:1px solid #eee">正在生成打印内容…</div>';
   // 报销单明细表
-  html += '<div class="rs-head"><h1>费 用 报 销 单</h1><div class="sub">报销日期：' + today + '　·　共 ' + sel.length + ' 张发票　·　税额合计 ¥' + taxTotal.toFixed(2) + '</div></div>';
+  html += '<div class="rs-head"><h1>费 用 报 销 单</h1><div class="sub">' + (setName || ('报销日期：' + today)) + '　·　共 ' + sel.length + ' 张发票　·　税额合计 ¥' + taxTotal.toFixed(2) + '</div></div>';
   html += '<table><thead><tr><th style="width:32px">序号</th><th>开票日期</th><th>分类</th><th>发票号码</th><th>销售方</th><th class="num">金额</th></tr></thead><tbody>';
   sorted.forEach(function(i, idx) {
     html += '<tr><td>' + (idx + 1) + '</td><td>' + i.date + '</td><td>' + i.cat + '</td><td>' + (i.number || '—') + '</td><td>' + (i.seller || '—') + '</td><td class="num">' + i.amount.toFixed(2) + '</td></tr>';
@@ -4184,13 +4427,15 @@ async function printReimbursement() {
   });
   html += '<tr class="rs-total-row"><td>全部总计</td><td class="num">' + sel.length + '</td><td class="num">¥' + total.toFixed(2) + '</td></tr>';
   html += '</tbody></table>';
-  html += '<div class="rs-note">报销人：＿＿＿＿＿＿　　审批人：＿＿＿＿＿＿　　财务：＿＿＿＿＿＿</div>';
+  html += '<div style="font-size:12px;margin:2px 0 10px">实报金额大写：<b>' + rmbUpper(total) + '</b></div>';
+  html += '<div class="rs-note">填报人：＿＿＿＿＿＿　　财会审核：＿＿＿＿＿＿　　终审：＿＿＿＿＿＿</div>';
   // ── 立即写入基础内容（表格），原件异步渲染后注入，避免窗口空白 ──
   html += '<script>';
-  html += 'window.__rs = { layout: ' + layout + ', atts: [] };';
+  html += 'window.__rs = { layout: ' + layout + ', hd: ' + hd + ', atts: [] };';
   html += 'var buildInvBlocksHTML = ' + buildInvBlocksHTML.toString() + ';';
   html += 'function __renderBlocks(){ var el = document.getElementById("invBlocks"); if (!el) return; el.className = "layout-" + window.__rs.layout; el.innerHTML = buildInvBlocksHTML(window.__rs.atts, window.__rs.layout); }';
-  html += 'function __setLayout(n){ window.__rs.layout = n; try{ localStorage.setItem("jizhang_print_layout", String(n)); }catch(e){} document.getElementById("lay1").className = n === 1 ? "active" : ""; document.getElementById("lay2").className = n === 2 ? "active" : ""; __renderBlocks(); }';
+  html += 'function __setLayout(n){ window.__rs.layout = n; try{ localStorage.setItem("jizhang_print_layout", String(n)); }catch(e){} document.getElementById("lay1").className = n === 1 ? "active" : ""; document.getElementById("lay2").className = n === 2 ? "active" : ""; document.getElementById("lay3").className = n === 3 ? "active" : ""; __renderBlocks(); }';
+  html += 'function __setHd(v){ window.__rs.hd = v; try{ localStorage.setItem("jizhang_pdf_hd", v ? "1" : "0"); }catch(e){} }';
   html += '<\/script>';
   html += '<div id="invBlocks" class="layout-' + layout + '"><p style="font-size:12px;color:#888;padding:8px">发票原件加载中…</p></div>';
   html += '<script>window.onload = function(){ var d = document.getElementById("printDiag"); if (d) d.textContent = "生成完成：报销单 ' + sel.length + ' 张发票，正在加载原件…"; }<\/script>';
@@ -4210,7 +4455,7 @@ async function printReimbursement() {
         var text = '';
         if (blob) {
           if (type.indexOf('pdf') >= 0) {
-            try { url = await renderPdfFirstPageAsImage(blob); type = 'image/jpeg'; }
+            try { url = await renderPdfFirstPageAsImage(blob, printScale); type = 'image/jpeg'; }
             catch (e) { url = URL.createObjectURL(blob); }
           } else {
             url = URL.createObjectURL(blob);
@@ -4228,7 +4473,7 @@ async function printReimbursement() {
         var tText = '';
         if (tBlob) {
           if (tType.indexOf('pdf') >= 0) {
-            try { tUrl = await renderPdfFirstPageAsImage(tBlob); tType = 'image/jpeg'; }
+            try { tUrl = await renderPdfFirstPageAsImage(tBlob, printScale); tType = 'image/jpeg'; }
             catch (e) { tUrl = URL.createObjectURL(tBlob); }
           } else {
             tUrl = URL.createObjectURL(tBlob);
@@ -4804,50 +5049,125 @@ function renderInvSetDetail(set) {
   var ids = set.invoiceIds || [];
   var list = invoices.filter(function(i) { return ids.indexOf(i.id) >= 0; });
   var total = list.reduce(function(s, i) { return s + i.amount; }, 0);
-  // 分类金额统计
+  // 附单 = 有行程单的发票
+  var attachCnt = list.filter(function(i) { return i.trip; }).length;
+  // 缺失检测：发票无原件附件（attach 为空）
+  var missing = list.filter(function(i) { return !i.attach; });
+  // 分类金额统计（可展开）
   var catGroups = {};
   list.forEach(function(i) { (catGroups[i.cat] = catGroups[i.cat] || []).push(i); });
-  var catRows = INVOICE_CATS.map(function(c) { return c.name; })
+  var catOrder = INVOICE_CATS.map(function(c) { return c.name; })
     .filter(function(n) { return catGroups[n]; })
-    .concat(Object.keys(catGroups).filter(function(n) { return !INVOICE_CATS.some(function(c) { return c.name === n; }); }))
-    .map(function(cat) {
-      var arr = catGroups[cat];
-      var c = invCatInfo(cat);
-      var sub = arr.reduce(function(s, i) { return s + i.amount; }, 0);
-      return '<div class="rs-cat-head" style="padding:7px 0"><span style="color:' + c.color + '">' + ico(c.icon) + '</span>' + cat +
-        '<span class="sub">' + arr.length + ' 张</span><span class="amt" style="color:' + c.color + '">' + formatMoney(sub) + '</span></div>';
+    .concat(Object.keys(catGroups).filter(function(n) { return !INVOICE_CATS.some(function(c) { return c.name === n; }); }));
+  var catRows = catOrder.map(function(cat, idx) {
+    var arr = catGroups[cat];
+    var c = invCatInfo(cat);
+    var sub = arr.reduce(function(s, i) { return s + i.amount; }, 0);
+    var items = arr.slice().sort(function(a, b) { return (b.date + '').localeCompare(a.date + ''); }).map(function(iv) {
+      return '<div class="scd-item" onclick="closeInvSetDetail();showInvoiceDetail(' + iv.id + ')">' +
+        '<div class="scd-main">' +
+          '<div class="scd-seller">' + (iv.seller || '未填销售方') + '</div>' +
+          '<div class="scd-sub"><span class="inv-num">' + (iv.number || '无号码') + '</span> · ' + iv.date + (iv.trip ? ' · 附行程单' : '') + '</div>' +
+        '</div>' +
+        '<div class="scd-amt">' + formatMoney(iv.amount) + '</div>' +
+      '</div>';
     }).join('');
-  var rows = list.slice().sort(function(a, b) { return (b.date + '').localeCompare(a.date + ''); }).map(function(iv) {
-    var c = invCatInfo(iv.cat);
-    return '<div class="inv-item" style="margin-bottom:8px" onclick="closeInvSetDetail();showInvoiceDetail(' + iv.id + ')">' +
-      '<span class="inv-check" style="display:none"></span>' +
-      '<span class="inv-icon" style="background:' + c.color + '20;color:' + c.color + ';">' + ico(c.icon) + '</span>' +
-      '<div class="inv-main">' +
-        '<div class="inv-title"><span class="nm">' + (iv.seller || '未填销售方') + '</span></div>' +
-        '<div class="inv-sub"><span class="inv-num">' + (iv.number || '无号码') + '</span> · ' + iv.date + '</div>' +
-      '</div>' +
-      '<div class="inv-right">' +
-        '<div class="inv-amount">' + formatMoney(iv.amount) + '</div>' +
-        '<span class="inv-set-del" onclick="event.stopPropagation();removeInvoiceFromSet(\'' + set.id + '\',' + iv.id + ')">✕</span>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  document.getElementById('invSetDetailContent').innerHTML =
-    '<div class="detail-hero" style="background:linear-gradient(180deg,rgba(79,110,247,0.14),rgba(255,255,255,0.55));border-color:rgba(79,110,247,0.3);">' +
-      '<div class="dh-icon" style="color:var(--primary);">' + ico('report') + '</div>' +
-      '<div class="dh-badges"><span class="dh-badge acct personal">报销集</span></div>' +
-      '<div class="dh-cat">' + escHtml(set.name) + '</div>' +
-      '<div class="dh-amount" style="font-size:28px">' + formatMoney(total) + '</div>' +
-      '<div class="dh-date">共 ' + list.length + ' 张发票</div>' +
+    return '<div class="sd-cat-row" data-cat="' + idx + '" onclick="toggleSetCat(this)">' +
+      '<span class="sc-icon" style="background:' + c.color + '18;color:' + c.color + ';">' + ico(c.icon) + '</span>' +
+      '<span class="sc-name">' + cat + '</span>' +
+      '<span class="sc-count">' + arr.length + ' 项</span>' +
+      '<span class="sc-amt" style="color:' + c.color + '">' + formatMoney(sub) + '</span>' +
+      '<span class="sc-arrow">›</span>' +
     '</div>' +
-    (catRows ? '<div class="rs-count" style="margin-top:10px">分类金额统计</div>' + catRows : '') +
-    '<div class="rs-count" style="margin-top:10px">发票列表</div>' +
-    (rows || '<div class="inv-set-empty">' + ico('note') + '<div>该报销集还没有发票<br><span style="font-size:11px">在发票详情里点「报销集」加入</span></div></div>') +
+    '<div class="sd-cat-detail">' + items + '</div>';
+  }).join('');
+  // 发票缺失警告
+  var warnHtml = missing.length > 0
+    ? '<div class="sd-missing">' + ico('alert') + '有 ' + missing.length + ' 张发票缺失原件，请检查</div>'
+    : '';
+  var fillDate = set.created ? new Date(set.created).toISOString().slice(0, 10) : getLocalDateStr();
+  document.getElementById('invSetDetailContent').innerHTML =
+    '<div class="inv-setdetail-hero">' +
+      '<div class="sd-top">' +
+        '<span class="sd-icon">' + ico('report') + '</span>' +
+        '<span class="sd-name">' + escHtml(set.name) + '</span>' +
+        '<span class="sd-date">填报 ' + fillDate + '</span>' +
+      '</div>' +
+      '<div class="sd-amount">' + formatMoney(total) + '<em> 元</em></div>' +
+      '<div class="sd-meta">' +
+        '<span>' + ico('note') + '发票 ' + list.length + '</span>' +
+        '<span>' + ico('paperclip') + '附单 ' + attachCnt + '</span>' +
+      '</div>' +
+    '</div>' +
+    warnHtml +
+    '<div class="rs-count" style="margin-top:8px">费用报销（按分类）</div>' +
+    (catRows ? '<div class="sd-cat-table">' + catRows + '</div>'
+      : '<div class="inv-set-empty">' + ico('note') + '<div>该报销集还没有发票<br><span style="font-size:11px">点下方「添票」加入发票</span></div></div>') +
+    '<div class="sd-tools">' +
+      '<button class="sd-tool-btn" onclick="openSetAddInvoices(\'' + set.id + '\')">' + ico('plus') + '添票<span class="sd-tb-sub">加入发票</span></button>' +
+      '<button class="sd-tool-btn" onclick="openSetNote(\'' + set.id + '\')">' + ico('note') + '报销集说明<span class="sd-tb-sub">备注</span></button>' +
+      '<button class="sd-tool-btn" onclick="exportReimbursementCSV()">' + ico('export') + 'Excel统计表<span class="sd-tb-sub">CSV</span></button>' +
+    '</div>' +
+    '<div class="sd-sumline"><span>合计（' + list.length + ' 张发票 · ' + attachCnt + ' 附单）</span><span class="v">' + formatMoney(total) + '</span></div>' +
     '<div class="detail-actions">' +
+      '<button class="detail-action-btn edit" style="background:linear-gradient(135deg,#7B93FF,var(--primary));color:#fff;border:none" onclick="openPdfGenForSet(\'' + set.id + '\')">' + ico('export') + '生成 PDF 合集</button>' +
       '<button class="detail-action-btn edit" onclick="showReimbursementForSet(\'' + set.id + '\')">' + ico('report') + '创建报销单</button>' +
       '<button class="detail-action-btn edit" style="background:rgba(120,130,180,0.14);color:var(--text);border:none" onclick="closeInvSetDetail()">关闭</button>' +
     '</div>';
 }
+// 分类展开/收起
+function toggleSetCat(row) {
+  row.classList.toggle('open');
+}
+// 报销集说明（备注）编辑
+function openSetNote(setId) {
+  var set = reimburseSets.find(function(s) { return s.id === setId; });
+  if (!set) return;
+  var note = prompt('报销集说明（备注）：', set.note || '');
+  if (note === null) return;
+  set.note = note.trim();
+  saveReimburseSets();
+  renderInvSetDetail(set);
+  showToast(note ? '说明已保存' : '说明已清除');
+}
+// 添票：从全部未加入的发票中选择加入
+function openSetAddInvoices(setId) {
+  var set = reimburseSets.find(function(s) { return s.id === setId; });
+  if (!set) return;
+  var available = invoices.filter(function(i) { return (set.invoiceIds || []).indexOf(i.id) < 0; });
+  var el = document.getElementById('setAddInvList');
+  if (available.length === 0) {
+    el.innerHTML = '<div class="inv-set-empty">' + ico('note') + '<div>所有发票都已在该报销集中</div></div>';
+  } else {
+    el.innerHTML = available.map(function(iv) {
+      var c = invCatInfo(iv.cat);
+      return '<div class="inv-item" style="margin-bottom:8px" onclick="addInvoiceToSet(\'' + set.id + '\',' + iv.id + ')">' +
+        '<span class="inv-check" style="display:none"></span>' +
+        '<span class="inv-icon" style="background:' + c.color + '20;color:' + c.color + ';">' + ico(c.icon) + '</span>' +
+        '<div class="inv-main">' +
+          '<div class="inv-title"><span class="nm">' + (iv.seller || '未填销售方') + '</span></div>' +
+          '<div class="inv-sub"><span class="inv-num">' + (iv.number || '无号码') + '</span> · ' + iv.date + '</div>' +
+        '</div>' +
+        '<div class="inv-right"><div class="inv-amount">' + formatMoney(iv.amount) + '</div></div>' +
+      '</div>';
+    }).join('');
+  }
+  _setAddId = setId;
+  document.getElementById('setAddOverlay').classList.add('show');
+}
+let _setAddId = null;
+function addInvoiceToSet(setId, invId) {
+  var set = reimburseSets.find(function(s) { return s.id === setId; });
+  if (!set) return;
+  set.invoiceIds = set.invoiceIds || [];
+  if (set.invoiceIds.indexOf(invId) < 0) set.invoiceIds.push(invId);
+  saveReimburseSets();
+  openSetAddInvoices(setId); // 刷新可加列表
+  renderInvSetDetail(set);
+  showToast('已加入报销集');
+}
+function closeSetAdd() { document.getElementById('setAddOverlay').classList.remove('show'); }
+function closeSetAddOutside(e) { if (e.target === document.getElementById('setAddOverlay')) closeSetAdd(); }
 function removeInvoiceFromSet(setId, invId) {
   var set = reimburseSets.find(function(s) { return s.id === setId; });
   if (!set) return;
