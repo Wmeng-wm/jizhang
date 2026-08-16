@@ -98,13 +98,29 @@ curl -s -o "$LOCALAPPDATA/Temp/cf_resp.txt" -w "%{http_code}" -X PUT \
 ### 2026-08-16：收件箱对齐发票盒子规则（已部署）
 
 - **收票规则 4 条**（收件箱弹窗内展示说明）：① PDF/OFD 附件自动提取 ② 无附件正文含发票链接自动下载 ③ 二维码/收据/截屏识别 ④ 图片手动导入
-- **正文链接下载**：Worker `extractLinksFromBody` 从邮件 HTML/文本提取 `.pdf/.ofd` 直链 + `<img src>` 外链图（二维码/收据图），fetch 下载转附件（限 4 个/8MB/12s 超时）
+- **正文链接下载**：Worker `extractLinksFromBody` 从邮件 HTML/文本提取 `.pdf/.ofd` 直链 + `<img src>` 外链图（二维码/收据图），fetch 下载转附件（限 4 个/8MB/12s 超时/整体 20s 限时）
 - **OFD 数电票**：Worker 用 fflate 解压 OFD（ZIP 内 XML）提取票面文本存 `ofdText`；前端 `parseOfdLocal` 本地 ZIP 解析兜底；`recognizeInvoiceFile`/`loadNextMailAttachment` 走 OFD 分支
 - **无附件邮件**：不再自动标记完成——含链接的保留收件箱人工处理，列表加「含链接」标签
 - **OCR 增强**：提示词支持收据/小票/消费截屏/二维码（二维码内容进 note 字段）
 - **收票邮箱基础**（2026-08-14 起）：Email Routing（Catch-all → Worker）→ `email` 处理器
   （postal-mime 解析 + HTML 内嵌 data:image 图提取 + 文件名乱码修复）→ KV `invmail:<邮箱>`；
   按设备隔离专属地址 `inv<uid片段>@ksjizhang.top`，共享地址 `invoice@ksjizhang.top` 已丢弃保护
+
+### 2026-08-16 晚：收件箱收到邮件但识别失败 —— 根因与修复（已部署）
+
+- **邮件收不到根因**：加正文链接提取时 `extractLinksFromBody(parsed, ...)` 引用 try 块内 `const parsed`
+  （块级作用域）→ ReferenceError → email handler 每次崩溃 → 邮件静默丢失。修复：parsed 声明提升到 try 外
+- **wrangler CLI 认证坑**：`wrangler kv key list` 用 OAuth 只看到 2 个键（错误账号视图），
+  REST API 直查才看到全部 22 个键。排查 KV 用
+  `curl https://api.cloudflare.com/client/v4/accounts/{acc}/storage/kv/namespaces/{ns}/keys`
+  （token 从 `~/.wrangler/config/default.toml` 的 oauth_token 读）
+- **识别失败根因**：① 携程/华住等国标数电票 XML 用 EInvoice 标签
+  （`InvoiceNumber`/`SellerName`/`IssueTime`/`TotaltaxIncludedAmount`），parseInvoiceXMLText 原只认旧标签
+  （Fphm/Xfmc/Kprq/Jshj）→ 已双格式兼容；② OFD 解析失败：postal-mime 的 `att.content` 在 Workers 是
+  ArrayBuffer，fflate `unzipSync` 只收 Uint8Array → 统一转换；③ 邮件正文装饰图
+  （logo/phone/seal/二维码 <30KB）被当发票 OCR 失败误报「图片模糊」→ 装饰图过滤跳过；
+  ④ 自动导入场景 OCR 失败静默（`_autoImportRunning` 时不弹 toast，手动才弹）
+- **验证**：真实携程 XML 双发票解析 10/10 通过（¥1110 主发票 + ¥40 保险）
 
 ### 2026-08-16：发票页对齐发票盒子样式（已部署）
 
