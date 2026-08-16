@@ -3437,15 +3437,17 @@ function parseInvoiceXMLText(xmlText) {
     var v = parseFloat(raw);
     return isNaN(v) ? 0 : v;
   }
-  var number = txt('Fphm');        // 发票号码
+  // 兼容两种格式：旧版税控 XML（Fphm/Xfmc/Kprq/Jshj）与国标数电票 EInvoice XML
+  // （InvoiceNumber/SellerName/IssueTime/TotaltaxIncludedAmount，携程/华住等平台用）
+  var number = txt('Fphm') || txt('InvoiceNumber') || txt('EIid') || '';   // 发票号码
   var code = txt('Fpdm');          // 发票代码（数电票为空）
-  var date = normInvDate(txt('Kprq'));  // 开票日期
-  // 价税合计（含税总额）：多种字段名兜底
-  var jshj = num('Jshj') || num('Kphjje') || num('Total') || num('Jshj2');
-  var hjje = num('Hjje');          // 不含税金额
-  var hjse = num('Hjse') || num('Se');  // 税额
-  var seller = txt('Xfmc');        // 销售方
-  var note = txt('Bz');            // 备注
+  var date = normInvDate(txt('Kprq') || txt('IssueTime') || txt('RequestTime'));  // 开票日期
+  // 价税合计（含税总额）：多种字段名兜底（国标：TotaltaxIncludedAmount）
+  var jshj = num('Jshj') || num('Kphjje') || num('Total') || num('Jshj2') || num('TotaltaxIncludedAmount');
+  var hjje = num('Hjje') || num('TotalAmWithoutTax');          // 不含税金额
+  var hjse = num('Hjse') || num('Se') || num('TotalTaxAm');    // 税额
+  var seller = txt('Xfmc') || txt('SellerName');        // 销售方
+  var note = txt('Bz') || txt('Remark');                // 备注
   if (!number) return null;
   var amount = jshj || (hjje + (hjse || 0));
   if (!amount || amount <= 0) return null;
@@ -3762,13 +3764,15 @@ async function ocrInvoiceBase64(base64, apiKey) {
     var data = result.data;
     var content = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
     var m = String(content).match(/\{[\s\S]*\}/);
-    if (!m) { showToast('未识别到发票信息'); return null; }
+    if (!m) { if (!window._autoImportRunning) showToast('未识别到发票信息'); return null; }
     var obj = JSON.parse(m[0]);
     var number = String(obj.number || '').trim();
     var amount = parseFloat(String(obj.amount || '').replace(/,/g, '')) || 0;
     if (!number && !amount) {
       window._lastOcrError = '图片模糊或非标准发票';
-      showToast('识别结果为空（图片模糊或非标准发票，请用高清版文件导入或拍照识别）');
+      // 自动导入场景静默（收件箱自动识别失败只是跳过该附件，最后由汇总 toast 提示），
+      // 手动识别才弹详细提示，避免误报「图片模糊」打扰
+      if (!window._autoImportRunning) showToast('识别结果为空（图片模糊或非标准发票，请用高清版文件导入或拍照识别）');
       return null;
     }
     return {
@@ -4850,6 +4854,13 @@ async function autoImportMails(silent) {
       for (var j = 0; j < atts.length; j++) {
         var att = atts[j];
         if (att.oversized || !att.base64) { unknown++; continue; }
+        // 装饰图过滤：logo/phone/seal/icon/微信/二维码 等签名图（<30KB）不当作发票，
+        // 避免 OCR 失败误报「图片模糊」（携程/华住等邮件正文常带 logo、印章、二维码装饰图）
+        var attNameLower = (att.name || '').toLowerCase();
+        var decoHits = /(logo|phone|seal|icon|wechat|weixin|email|banner|footer|header|qr|qrcode|二维码|微信)/.test(attNameLower) &&
+          (/\.(png|gif)$/i.test(attNameLower) || /(logo|seal|qr|icon|wechat|weixin|二维码)/.test(attNameLower));
+        var isDeco = att.type && att.type.indexOf('image/') === 0 && decoHits;
+        if (isDeco && (att.size || 0) < 30000) { continue; } // 装饰图直接跳过，不计数
         var file;
         try {
           file = new File([base64ToBlob(att.base64, att.type || 'application/octet-stream')], att.name || ('附件' + (j + 1)), { type: att.type || 'application/octet-stream' });
