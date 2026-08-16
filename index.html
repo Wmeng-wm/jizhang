@@ -3527,7 +3527,24 @@ async function recognizePDFFile(file) {
       fullText += tc.items.map(function(i) { return i.str || ''; }).join(' ') + '\n';
     } catch (e) {}
   }
+  // 文件名提示（结账单/结算单 PDF 文本层常只有裸数字无关键词，文件名是最可靠信号）
+  var fname = String(file && file.name || '').toLowerCase();
+  if (/结账单|结算单|结帐单/.test(fname)) fullText += ' 结账单 消费合计 ';
   var fromText = parseInvoiceText(fullText);
+  // 结账单兜底：文件名含结账单/结算单但文本层识别失败时，
+  // 从文本层提取「日期 + 金额」模式（如 2026-08-12 ... 199.15）构造结算单数据
+  if (!fromText && /结账单|结算单|结帐单/.test(fname)) {
+    try {
+      var settleDate = (fullText.match(/\d{4}[-/]\d{1,2}[-/]\d{1,2}/) || [''])[0].replace(/\//g, '-');
+      var amounts = fullText.match(/\d+\.\d{2}/g) || [];
+      // 取最大的两位小数金额（结账单合计通常最大）
+      var settleAmt = 0;
+      amounts.forEach(function(a) { var v = parseFloat(a); if (v > settleAmt) settleAmt = v; });
+      if (settleAmt > 0) {
+        fromText = { number: '', code: '', date: normInvDate(settleDate), amount: settleAmt, tax: 0, seller: '', type: '住宿', note: '结账单（自动识别）' };
+      }
+    } catch (e) { /* 兜底失败忽略 */ }
+  }
   // 3) 渲染第一页 → 视觉 OCR（文本层识别失败/乱码时的兜底，渲染图清晰）
   if (getZhipuKey()) {
     try {
@@ -3757,9 +3774,14 @@ async function ocrInvoiceBase64(base64, apiKey) {
       try { var errJson = JSON.parse(result.error || '{}'); errMsg = (errJson && errJson.error && errJson.error.message) || result.error || ''; } catch (e) { errMsg = result.error || ''; }
       errMsg = String(errMsg).slice(0, 200);
       window._lastOcrError = 'HTTP ' + result.status + (errMsg ? ' ' + errMsg : '');
-      if (result.status === 401) { showToast('智谱 Key 无效，请检查' + (errMsg ? '：' + errMsg : '')); return null; }
-      if (result.status === 429) { showToast('识别请求太频繁，稍后再试'); return null; }
-      showToast('识别失败（' + result.status + (errMsg ? ' ' + errMsg : '') + '）'); return null;
+      // 自动导入场景静默（收件箱批量识别时某张图失败不该打扰；401/429 属配置/限流问题仍提示）
+      var autoSilent = window._autoImportRunning && result.status !== 401 && result.status !== 429;
+      if (!autoSilent) {
+        if (result.status === 401) { showToast('智谱 Key 无效，请检查' + (errMsg ? '：' + errMsg : '')); return null; }
+        if (result.status === 429) { showToast('识别请求太频繁，稍后再试'); return null; }
+        showToast('识别失败（' + result.status + (errMsg ? ' ' + errMsg : '') + '）'); return null;
+      }
+      return null;
     }
     var data = result.data;
     var content = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
@@ -3785,7 +3807,8 @@ async function ocrInvoiceBase64(base64, apiKey) {
   } catch (e) {
     console.warn('OCR 失败', e);
     window._lastOcrError = (e && e.message) ? e.message : '网络错误';
-    showToast('识别失败，请检查网络');
+    // 自动导入场景静默（某张图网络失败不该打断批量导入）
+    if (!window._autoImportRunning) showToast('识别失败，请检查网络');
     return null;
   }
 }
@@ -4854,9 +4877,12 @@ async function autoImportMails(silent) {
       for (var j = 0; j < atts.length; j++) {
         var att = atts[j];
         if (att.oversized || !att.base64) { unknown++; continue; }
-        // 装饰图过滤：logo/phone/seal/icon/微信/二维码 等签名图（<30KB）不当作发票，
-        // 避免 OCR 失败误报「图片模糊」（携程/华住等邮件正文常带 logo、印章、二维码装饰图）
+        // 装饰图/小图过滤：logo/phone/seal/icon/微信/二维码 等签名图（<30KB）不当作发票，
+        // <2KB 的任何图片直接跳过（凭证图2.png 等 1KB 装饰图，避免 OCR 失败误报）
         var attNameLower = (att.name || '').toLowerCase();
+        // HTML 伪装的附件直接跳过（Worker 链接下载可能拿到登录页/SPA 网页，非发票文件）
+        if ((att.type || '').indexOf('text/html') >= 0) { continue; }
+        if (att.type && att.type.indexOf('image/') === 0 && (att.size || 0) < 2000) { continue; }
         var decoHits = /(logo|phone|seal|icon|wechat|weixin|email|banner|footer|header|qr|qrcode|二维码|微信)/.test(attNameLower) &&
           (/\.(png|gif)$/i.test(attNameLower) || /(logo|seal|qr|icon|wechat|weixin|二维码)/.test(attNameLower));
         var isDeco = att.type && att.type.indexOf('image/') === 0 && decoHits;
@@ -5021,6 +5047,7 @@ async function loadNextMailAttachment() {
         showToast('正在识别图片…');
         var d = await ocrInvoiceImage(file, key);
         if (d) { fillInvForm(d); showToast('已识别（图片），请核对后保存'); return; }
+        showToast('未识别到发票信息（可能不是发票，如宣传图/二维码），可手动填写或删除该附件');
       } else {
         showToast('图片附件已绑定，可手动填写（设置智谱 Key 可自动识别）');
       }
