@@ -3886,6 +3886,32 @@ async function ocrInvoiceBase64(base64, apiKey) {
 }
 // ── AI 记账：智谱视觉一步识别（替代 iOS OCR + DeepSeek 两步）──
 // 截图直接传图，Worker 代理 /api/ocr?mode=bookkeeping 用 glm-4v-flash 看图提取记账字段
+// 从智谱返回文本中提取 JSON 对象：兼容 ```json 代码块、前后说明文字、多个 JSON 块、嵌套花括号
+function extractJsonObject(text) {
+  var raw = String(text || '').replace(/```(?:json)?/gi, '').trim();
+  if (!raw) return null;
+  // 1) 整体解析
+  try {
+    var whole = JSON.parse(raw);
+    if (whole && typeof whole === 'object') {
+      if (Array.isArray(whole)) whole = whole[0] && typeof whole[0] === 'object' ? whole[0] : null;
+      return whole;
+    }
+  } catch (e) { /* 忽略 */ }
+  // 2) 从每个 { 位置尝试解析到末尾，收集成功对象，取最后一个（跳过嵌套花括号干扰）
+  var found = null;
+  for (var i = 0; i < raw.length; i++) {
+    if (raw.charAt(i) === '{') {
+      try {
+        var candidate = JSON.parse(raw.slice(i));
+        if (candidate && typeof candidate === 'object') found = candidate;
+      } catch (e2) { /* 继续找下一个 */ }
+    }
+  }
+  // 3) 数组格式 [ {...} ]：取第一个对象
+  if (found && Array.isArray(found)) found = found[0] && typeof found[0] === 'object' ? found[0] : null;
+  return found;
+}
 async function ocrBookkeepingBase64(base64, apiKey) {
   try {
     var ctl = new AbortController();
@@ -3908,9 +3934,12 @@ async function ocrBookkeepingBase64(base64, apiKey) {
     }
     var data = result.data;
     var content = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
-    var m = String(content).match(/\{[\s\S]*\}/);
-    if (!m) return { error: '未识别到交易信息（截图可能不清晰或不是支付截图）' };
-    var obj = JSON.parse(m[0]);
+    // 解析智谱返回的 JSON：content 可能带 ```json 代码块标记、前后说明文字、甚至多个 JSON 块
+    // 策略：从每个 { 位置尝试 JSON.parse 到末尾，收集所有成功对象，取最后一个（最可能是完整结果）
+    var obj = extractJsonObject(String(content));
+    if (!obj || (!String(obj.amount || '').trim() && !String(obj.category || '').trim() && !String(obj.note || '').trim() && !String(obj.type || '').trim())) {
+      return { error: '未识别到交易信息（截图可能不清晰或不是支付截图）' };
+    }
     return {
       type: String(obj.type || '').toLowerCase().indexOf('income') >= 0 ? 'income' : 'expense',
       amount: parseFloat(String(obj.amount || '').replace(/[^0-9.\-]/g, '')) || 0,
