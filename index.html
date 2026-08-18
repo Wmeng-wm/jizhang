@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -2452,6 +2452,27 @@ function selectCategory(name) {
   renderCategoryGrid();
 }
 
+// 智谱返回的分类兜底：确保分类在当前账户的分类列表里（否则前端选不中）
+// 返回 null 表示原分类可用；否则返回应使用的分类名
+function normalizeAiCategory(raw, acct, type) {
+  var name = String(raw || '').trim();
+  if (!name) return null;
+  var cats = (CATEGORIES[acct] && CATEGORIES[acct][type]) || [];
+  if (cats.some(function(c) { return c.name === name; })) return null; // 原分类可用
+  // 跨账户查找：找到的分类必须也存在于当前账户列表
+  var found = null;
+  for (var a in CATEGORIES) {
+    var hit = (CATEGORIES[a][type] || []).find(function(c) { return c.name === name; });
+    if (hit && cats.some(function(c) { return c.name === hit.name; })) { found = hit.name; break; }
+  }
+  if (found) return found;
+  // 常见别名映射
+  var alias = { '人情': '其他', '娱乐': '购物', '零食': '餐饮', '饮料': '餐饮', '咖啡': '餐饮', '外卖': '餐饮', '打车': '交通', '停车': '停车费', '办公': '办公用品', '酒店': '酒店', '房租': '住房', '话费': '通讯', '水费': '水电燃气', '电费': '水电燃气', '燃气': '水电燃气' };
+  var mapped = alias[name];
+  if (mapped && cats.some(function(c) { return c.name === mapped; })) return mapped;
+  return '其他'; // 兜底
+}
+
 function closeModalOutside(e) {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
 }
@@ -2960,8 +2981,8 @@ function handleUrlParams() {
       var r = await ocrBookkeepingById(imgId);
       if (r && !r.error) {
         var type = r.type || 'expense';
-        var cat = r.category || getCategories(type)[0].name;
         var ac = r.accountType || 'personal';
+        var cat = normalizeAiCategory(r.category, ac, type) || r.category || getCategories(type)[0].name;
         modalAccount = ac; openModal(type);
         if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
         document.getElementById('noteInput').value = r.note;
@@ -2989,8 +3010,8 @@ function handleUrlParams() {
       var r = await ocrBookkeepingBase64('data:image/jpeg;base64,' + b64);
       if (r && !r.error) {
         var type = r.type || 'expense';
-        var cat = r.category || getCategories(type)[0].name;
         var ac = r.accountType || 'personal';
+        var cat = normalizeAiCategory(r.category, ac, type) || r.category || getCategories(type)[0].name;
         modalAccount = ac; openModal(type);
         if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
         document.getElementById('noteInput').value = r.note;
