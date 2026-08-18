@@ -3888,11 +3888,15 @@ async function ocrInvoiceBase64(base64, apiKey) {
 // 截图直接传图，Worker 代理 /api/ocr?mode=bookkeeping 用 glm-4v-flash 看图提取记账字段
 async function ocrBookkeepingBase64(base64, apiKey) {
   try {
+    var ctl = new AbortController();
+    var timer = setTimeout(function() { ctl.abort(); }, 30000); // 30s 超时，防止挂起
     var resp = await fetch(API_BASE + '/ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64, apiKey: apiKey, mode: 'bookkeeping' })
+      body: JSON.stringify({ image: base64, apiKey: apiKey, mode: 'bookkeeping' }),
+      signal: ctl.signal
     });
+    clearTimeout(timer);
     var result = await resp.json();
     if (!result || !result.ok) {
       var errMsg = '';
@@ -3915,7 +3919,7 @@ async function ocrBookkeepingBase64(base64, apiKey) {
       accountType: String(obj.accountType || '').trim().toLowerCase().indexOf('work') >= 0 ? 'work' : 'personal'
     };
   } catch (e) {
-    return { error: '识别失败：' + (e && e.message ? e.message : '网络错误') };
+    return { error: '识别失败：' + (e && e.name === 'AbortError' ? '请求超时（30s），请重试' : (e && e.message ? e.message : '网络错误')) };
   }
 }
 // 图片压缩：最大边 1600px，JPEG 0.85
