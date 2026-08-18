@@ -2467,10 +2467,30 @@ function normalizeAiCategory(raw, acct, type) {
   }
   if (found) return found;
   // 常见别名映射
-  var alias = { '人情': '其他', '娱乐': '购物', '零食': '餐饮', '饮料': '餐饮', '咖啡': '餐饮', '外卖': '餐饮', '打车': '交通', '停车': '停车费', '办公': '办公用品', '酒店': '酒店', '房租': '住房', '话费': '通讯', '水费': '水电燃气', '电费': '水电燃气', '燃气': '水电燃气' };
+  var alias = { '人情': '其他', '娱乐': '购物', '零食': '餐饮', '饮料': '餐饮', '咖啡': '餐饮', '外卖': '餐饮', '麦当劳': '餐饮', '肯德基': '餐饮', '星巴克': '餐饮', '打车': '交通', '停车': '停车费', '办公': '办公用品', '酒店': '酒店', '房租': '住房', '话费': '通讯', '水费': '水电燃气', '电费': '水电燃气', '燃气': '水电燃气', '快递': '快递邮寄' };
   var mapped = alias[name];
   if (mapped && cats.some(function(c) { return c.name === mapped; })) return mapped;
   return '其他'; // 兜底
+}
+
+// 根据分类反推账户：差旅/工作专属分类 → 强制工作账户（对齐旧版 DeepSeek 规则）
+// 返回 'work' / 'personal' / null（null 表示维持原判断）
+function inferAiAccount(cat, aiAcct, type) {
+  if (type !== 'expense') return null;
+  var name = String(cat || '').trim();
+  if (!name) return null;
+  // 先做别名归一（与 normalizeAiCategory 的 alias 保持一致），再按归一后的名字判断
+  var alias = { '人情': '其他', '娱乐': '购物', '零食': '餐饮', '饮料': '餐饮', '咖啡': '餐饮', '外卖': '餐饮', '麦当劳': '餐饮', '肯德基': '餐饮', '星巴克': '餐饮', '打车': '交通', '停车': '停车费', '办公': '办公用品', '酒店': '酒店', '房租': '住房', '话费': '通讯', '水费': '水电燃气', '电费': '水电燃气', '燃气': '水电燃气', '快递': '快递邮寄' };
+  var norm = alias[name] || name;
+  // 工作账户专属/差旅分类
+  var workOnly = ['飞机', '高铁', '网约车', '停车费', '办公用品', '快递邮寄', '应酬招待', '培训学习'];
+  if (workOnly.indexOf(norm) >= 0) return 'work';
+  // 酒店：工作账户差旅场景
+  if (norm === '酒店') return 'work';
+  // 个人账户专属分类
+  var personalOnly = ['住房', '水电燃气', '超市', '美容', '运动健身', '宠物', '烟酒', '信用卡'];
+  if (personalOnly.indexOf(norm) >= 0) return 'personal';
+  return null;
 }
 
 function closeModalOutside(e) {
@@ -2981,8 +3001,10 @@ function handleUrlParams() {
       var r = await ocrBookkeepingById(imgId);
       if (r && !r.error) {
         var type = r.type || 'expense';
-        var ac = r.accountType || 'personal';
-        var cat = normalizeAiCategory(r.category, ac, type) || r.category || getCategories(type)[0].name;
+        var aiAcct = r.accountType || 'personal';
+        var rawCat = r.category || '';
+        var ac = inferAiAccount(rawCat, aiAcct, type) || aiAcct;
+        var cat = normalizeAiCategory(rawCat, ac, type) || rawCat || getCategories(type)[0].name;
         modalAccount = ac; openModal(type);
         if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
         document.getElementById('noteInput').value = r.note;
@@ -3010,8 +3032,10 @@ function handleUrlParams() {
       var r = await ocrBookkeepingBase64('data:image/jpeg;base64,' + b64);
       if (r && !r.error) {
         var type = r.type || 'expense';
-        var ac = r.accountType || 'personal';
-        var cat = normalizeAiCategory(r.category, ac, type) || r.category || getCategories(type)[0].name;
+        var aiAcct = r.accountType || 'personal';
+        var rawCat = r.category || '';
+        var ac = inferAiAccount(rawCat, aiAcct, type) || aiAcct;
+        var cat = normalizeAiCategory(rawCat, ac, type) || rawCat || getCategories(type)[0].name;
         modalAccount = ac; openModal(type);
         if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
         document.getElementById('noteInput').value = r.note;
