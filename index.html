@@ -1157,7 +1157,7 @@ body {
     </div>
     <div class="settings-group">
       <div class="settings-item">
-        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><rect x="5" y="8" width="14" height="11" rx="3"/><circle cx="9.5" cy="13" r="1.2"/><circle cx="14.5" cy="13" r="1.2"/><path d="M12 8V4.5M9 4.5h6M12 16v1.5"/></svg></span><div>AI 识别<span class="info">内置智谱免费模型，截图自动识别记账</span></div></div>
+        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><rect x="5" y="8" width="14" height="11" rx="3"/><circle cx="9.5" cy="13" r="1.2"/><circle cx="14.5" cy="13" r="1.2"/><path d="M12 8V4.5M9 4.5h6M12 16v1.5"/></svg></span><div>AI 识别<span class="info">内置AI模型，截图自动识别记账</span></div></div>
         <div class="right" style="font-size:11px;color:var(--success)">已内置 ✓</div>
       </div>
       <div class="settings-item" onclick="configureInvMailbox()">
@@ -3620,8 +3620,7 @@ async function importInvoicePDF(file) {
       return;
     }
     var ocrErr = window._lastOcrError || '';
-    var keyInfo = getZhipuKey() ? '' : '（⚠ 当前浏览器未检测到智谱 Key，请在设置页重新保存）';
-    showToast(ocrErr ? 'PDF 识别失败：' + ocrErr + keyInfo : (getZhipuKey() ? 'PDF 识别失败，可截图后用拍照识别' : 'PDF 无文字层，请设置智谱 Key 或用拍照识别'));
+    showToast(ocrErr ? 'PDF 识别失败：' + ocrErr + '，可截图后用拍照识别' : 'PDF 无文字层，可截图后用拍照识别');
   } catch (e) {
     console.warn('PDF 解析失败', e);
     showToast(e && e.message && e.message.indexOf('联网') >= 0 ? e.message : 'PDF 解析失败，请检查文件');
