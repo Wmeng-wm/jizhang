@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -605,6 +605,16 @@ body {
 }
 .modal .save-btn:active { opacity: 0.85; transform: scale(0.98); }
 .modal .save-btn:disabled { opacity: 0.4; }
+.modal .cancel-btn {
+  width: 100%; padding: 14px; background: rgba(255,255,255,0.65);
+  color: var(--text); border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 16px; font-size: 16px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.modal .cancel-btn:active { opacity: 0.7; transform: scale(0.98); }
+.modal .btn-row { display: flex; gap: 10px; }
+.modal .btn-row .save-btn { flex: 1.4; margin-bottom: 0; }
+.modal .btn-row .cancel-btn { flex: 1; }
 
 /* ── Tab Bar ── */
 .tab-bar {
@@ -1147,16 +1157,8 @@ body {
     </div>
     <div class="settings-group">
       <div class="settings-item">
-        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><rect x="5" y="8" width="14" height="11" rx="3"/><circle cx="9.5" cy="13" r="1.2"/><circle cx="14.5" cy="13" r="1.2"/><path d="M12 8V4.5M9 4.5h6M12 16v1.5"/></svg></span><div>AI 增强识别<span class="info">调用 AI 识别更精准</span></div></div>
-        <div class="right"><label class="toggle"><input type="checkbox" id="aiToggle" onchange="setAiEnabled(this.checked)"><span class="slider"></span></label></div>
-      </div>
-      <div class="settings-item" id="apiKeyItem" onclick="configureApiKey()">
-        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><circle cx="8" cy="15" r="4.5"/><path d="M11.5 11.5L20 3M16 7l3 3M13.5 9.5l2 2"/></svg></span><div>DeepSeek API Key</div></div>
-        <div class="right" id="apiKeyStatus">未设置</div>
-      </div>
-      <div class="settings-item" onclick="configureZhipuKey()">
-        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M4 8.5h2.6l1.7-2.4a1 1 0 01.8-.4h6.8a1 1 0 01.8.4L18.4 8.5H21a1 1 0 011 1V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5a1 1 0 011-1z"/><circle cx="12" cy="14" r="3.6"/></svg></span><div>智谱 API Key<span class="info">发票拍照 OCR 识别用</span></div></div>
-        <div class="right" id="zhipuKeyStatus">未设置</div>
+        <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><rect x="5" y="8" width="14" height="11" rx="3"/><circle cx="9.5" cy="13" r="1.2"/><circle cx="14.5" cy="13" r="1.2"/><path d="M12 8V4.5M9 4.5h6M12 16v1.5"/></svg></span><div>AI 识别<span class="info">内置智谱免费模型，截图自动识别记账</span></div></div>
+        <div class="right" style="font-size:11px;color:var(--success)">已内置 ✓</div>
       </div>
       <div class="settings-item" onclick="configureInvMailbox()">
         <div class="left"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M3 6.5l9 6.5 9-6.5"/><path d="M3 15.5l5.5-4M21 15.5l-5.5-4"/></svg></span><div>收票邮箱<span class="info">发票邮件自动转发到这里识别入库 · 点击查看/复制</span></div></div>
@@ -1296,7 +1298,10 @@ body {
     <div class="category-grid" id="categoryGrid"></div>
     <input type="text" class="note-input" id="noteInput" placeholder="添加备注（可选）">
     <input type="date" class="date-input" id="dateInput">
-    <button class="save-btn" id="saveBtn" onclick="saveRecord()">保存</button>
+    <div class="btn-row">
+      <button class="save-btn" id="saveBtn" onclick="saveRecord()">保存</button>
+      <button class="cancel-btn" onclick="closeModal()">取消</button>
+    </div>
   </div>
 </div>
 
@@ -2901,74 +2906,15 @@ function updateMonthLabel() {
 // ── AI 增强识别配置 ──
 var DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
-function getAiEnabled() {
-  return localStorage.getItem('ai_enhance_enabled') !== 'false';
-}
-function setAiEnabled(val) {
-  localStorage.setItem('ai_enhance_enabled', val ? 'true' : 'false');
-  updateApiKeyItem();
-}
-function getApiKey() { return localStorage.getItem('deepseek_api_key') || ''; }
-function configureApiKey() {
-  var k = getApiKey();
-  var key = prompt('DeepSeek API Key（sk- 开头）', k);
-  if (key === null) return;
-  key = key.trim();
-  if (key && !key.startsWith('sk-')) { showToast('格式不对，需 sk- 开头'); return; }
-  if (key) { localStorage.setItem('deepseek_api_key', key); showToast('Key 已保存'); }
-  else { localStorage.removeItem('deepseek_api_key'); showToast('Key 已清除'); }
-  updateApiKeyStatus();
-}
-function updateApiKeyStatus() {
-  var el = document.getElementById('apiKeyStatus');
-  if (el) el.textContent = getApiKey() ? '已设置 ✓' : '未设置';
-}
-function configureZhipuKey() {
-  var k = getZhipuKey();
-  var key = prompt('智谱 API Key（open.bigmodel.cn 控制台获取）', k);
-  if (key === null) return;
-  key = key.trim();
-  if (key) { localStorage.setItem('zhipu_api_key', key); showToast('Key 已保存'); }
-  else { localStorage.removeItem('zhipu_api_key'); showToast('Key 已清除'); }
-  var el = document.getElementById('zhipuKeyStatus');
-  if (el) el.textContent = getZhipuKey() ? '已设置 ✓' : '未设置';
-}
-function updateAiToggle() {
-  var el = document.getElementById('aiToggle');
-  if (el) el.checked = getAiEnabled();
-  updateApiKeyItem();
-}
-function updateApiKeyItem() {
-  var el = document.getElementById('apiKeyItem');
-  if (el) el.style.display = getAiEnabled() ? '' : 'none';
-}
+// AI 识别使用内置智谱免费模型（key 存 Cloudflare Secret，前端无需配置）
+function getAiEnabled() { return true; }
+function setAiEnabled() { /* 保留兼容：AI 识别始终开启 */ }
+function updateAiToggle() { /* 设置项已移除，保留兼容 */ }
+function updateApiKeyItem() { /* 设置项已移除，保留兼容 */ }
 
 async function callDeepSeekParse(text) {
-  var apiKey = getApiKey();
-  if (!apiKey) return { error: '未配置 API Key' };
-  var prompt = '你是一个专业的智能记账助手，请分析OCR文字提取交易信息。\n\n【核心规则】\n1. 金额：从文字中提取实际交易金额\n2. 日期：不要从OCR文字中提取日期，始终使用当前日期\n3. 分类（注意分类随账户类型变化）：\n   - 当 accountType = "work" 时，category 只能从以下选：餐饮/飞机/高铁/网约车/购物/娱乐/酒店/通讯/医疗/其他\n   - 当 accountType = "personal" 时，category 只能从以下选：餐饮/交通/购物/超市/通讯/医疗/教育/信用卡/保险/住房/娱乐/人情/宠物/其他\n   - 映射规则：滴滴/网约车→网约车，高铁/动车→高铁，飞机/机票→飞机，酒店/宾馆/住宿→酒店，加油/打车/地铁→交通（personal）\n4. 账户类型（严格执行）：\n   - accountType = "work" 的情况（工作账户，用于差旅报销）：\n     * 任何出行相关的交易：滴滴出行、T3出行、曹操出行、哈啰、花小猪、高德打车、首汽约车等网约车 → 同时设置 category="网约车"\n     * 12306、高铁、动车、火车、机票、飞机、航空公司 → 同时设置 category="高铁"或"飞机"\n     * 酒店、宾馆、住宿（任何与住店相关的消费）→ 同时设置 category="酒店"\n     * 涉及出差、报销、公务、公司、单位、项目、商务、会议、团建、办公用品\n   - accountType = "personal" 的情况（个人账户，日常消费）：\n     * 餐饮美食：餐厅、外卖、奶茶、咖啡、麦当劳、肯德基、星巴克、火锅、面包店等所有吃的东西 → category="餐饮"\n     * 购物消费：淘宝、京东、拼多多、抖音、商场、超市、便利店、衣服、日用品等 → category="购物"或"超市"\n     * 网约车/打车（非工作场景）→ category="交通"\n     * 生活服务：话费、水电、医疗、教育、娱乐、健身、电影 → 对应分类\n   记住：只有差旅出行类的才归work，其他所有日常消费一律归personal\n5. 备注：准确识别真正的商家（银行名称只是付款卡，支付宝/微信只是支付方式，不是商家），备注格式为"商家名 - 商品/服务"（如"滴滴出行 - 快车"、"星巴克 - 拿铁"、"饿了么 - 午餐"）\n6. 收支类型：支出为expense，工资/理财/退款/红包等为income\n\n只返回JSON。JSON格式：{"type":"expense/income","amount":数字,"category":"分类","note":"商家名 - 商品","accountType":"personal/work"}\n\nOCR文字：' + text;
-  try {
-    var resp = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [{role:'system',content:'你是记账助手。银行和支付平台不是商家。只返回JSON。'},{role:'user',content:prompt}],
-        temperature: 0.1, max_tokens: 500
-      })
-    });
-    if (!resp.ok) return { error: 'API请求失败 ('+resp.status+')' };
-    var data = await resp.json();
-    var c = data.choices[0].message.content.trim().replace(/^\\(?:json)?\s*/i,'').replace(/\s*\\$/i,'');
-    var parsed = JSON.parse(c);
-    return {
-      type: parsed.type||'expense',
-      amount: parsed.amount||0,
-      category: parsed.category||'其他',
-      note: parsed.note||'',
-      accountType: parsed.accountType||'personal'
-    };
-  } catch(e) { return { error: 'AI解析失败: '+e.message }; }
+  // DeepSeek 不再使用：文字分类改为本地规则兜底，返回 null 让调用方走本地解析
+  return null;
 }
 
 function handleUrlParams() {
@@ -3010,12 +2956,8 @@ function handleUrlParams() {
       if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-      if (!getZhipuKey()) {
-        showToast('请先设置智谱 API Key（设置 → 智谱 API Key）');
-        return;
-      }
       showToast('🤖 AI 识别中...');
-      var r = await ocrBookkeepingById(imgId, getZhipuKey());
+      var r = await ocrBookkeepingById(imgId);
       if (r && !r.error) {
         var type = r.type || 'expense';
         var cat = r.category || getCategories(type)[0].name;
@@ -3024,7 +2966,7 @@ function handleUrlParams() {
         if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
         document.getElementById('noteInput').value = r.note;
         selectedCategory = cat; renderCategoryGrid();
-        showToast('✅ 智谱识别完成，请确认后保存');
+        showToast('✅ 识别完成，请确认后保存');
         return;
       }
       showToast(r && r.error ? r.error : '识别失败，请重试');
@@ -3041,14 +2983,10 @@ function handleUrlParams() {
       if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-      if (!getZhipuKey()) {
-        showToast('请先设置智谱 API Key（设置 → 智谱 API Key）');
-        return;
-      }
       if (b64.length < 100) { showToast('图片数据无效（仅收到 ' + b64.length + ' 字符，快捷指令需插入真实变量）'); return; }
       if (b64.length > 6 * 1024 * 1024) { showToast('图片过大，请重试（截图压缩后再试）'); return; }
       showToast('🤖 AI 识别中...');
-      var r = await ocrBookkeepingBase64('data:image/jpeg;base64,' + b64, getZhipuKey());
+      var r = await ocrBookkeepingBase64('data:image/jpeg;base64,' + b64);
       if (r && !r.error) {
         var type = r.type || 'expense';
         var cat = r.category || getCategories(type)[0].name;
@@ -3057,7 +2995,7 @@ function handleUrlParams() {
         if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
         document.getElementById('noteInput').value = r.note;
         selectedCategory = cat; renderCategoryGrid();
-        showToast('✅ 智谱识别完成，请确认后保存');
+        showToast('✅ 识别完成，请确认后保存');
         return;
       }
       showToast((r && r.error ? r.error : '识别失败，请重试') + '（收到 ' + Math.round(b64.length / 1024) + 'KB）');
@@ -3073,7 +3011,7 @@ function handleUrlParams() {
       if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-      if (getAiEnabled() && getApiKey()) {
+      if (getAiEnabled()) {
         showToast('🤖 AI 识别中...');
         var r = await callDeepSeekParse(text);
         if (r && !r.error) {
@@ -3084,7 +3022,7 @@ function handleUrlParams() {
           if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
           document.getElementById('noteInput').value = r.note;
           selectedCategory = cat; renderCategoryGrid();
-          showToast('✅ AI 识别完成，请确认后保存');
+          showToast('✅ 识别完成，请确认后保存');
           return;
         }
       }
@@ -3608,20 +3546,18 @@ async function recognizePDFFile(file) {
       }
     } catch (e) { /* 兜底失败忽略 */ }
   }
-  // 3) 渲染第一页 → 视觉 OCR（文本层识别失败/乱码时的兜底，渲染图清晰）
-  if (getZhipuKey()) {
-    try {
-      var pg1 = await pdf.getPage(1);
-      var viewport = pg1.getViewport({ scale: 3 });
-      var canvas = document.createElement('canvas');
-      canvas.width = viewport.width; canvas.height = viewport.height;
-      await pg1.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
-      var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      var ocrData = await ocrInvoiceBase64(dataUrl, getZhipuKey());
-      // OCR 结果优先（渲染图能看到文字/图片内容）
-      if (ocrData && (ocrData.number || parseFloat(ocrData.amount) > 0)) return ocrData;
-    } catch (e) { console.warn('PDF 渲染 OCR 失败', e); }
-  }
+  // 3) 渲染第一页 → 视觉 OCR（文本层识别失败/乱码时的兜底，渲染图清晰；智谱 key 内置服务端）
+  try {
+    var pg1 = await pdf.getPage(1);
+    var viewport = pg1.getViewport({ scale: 3 });
+    var canvas = document.createElement('canvas');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    await pg1.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+    var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    var ocrData = await ocrInvoiceBase64(dataUrl);
+    // OCR 结果优先（渲染图能看到文字/图片内容）
+    if (ocrData && (ocrData.number || parseFloat(ocrData.amount) > 0)) return ocrData;
+  } catch (e) { console.warn('PDF 渲染 OCR 失败', e); }
   // 回退：文本层解析结果（结算单/部分字段）
   if (fromText && (fromText.number || parseFloat(fromText.amount) > 0)) return fromText;
   return null;
@@ -3670,9 +3606,7 @@ async function recognizeInvoiceFile(file, ofdText) {
       return null;
     }
     if (type.indexOf('image/') === 0) {
-      var key = getZhipuKey();
-      if (!key) return null;
-      return await ocrInvoiceImage(file, key);
+      return await ocrInvoiceImage(file);
     }
   } catch (e) { console.warn('识别失败', e); }
   return null;
@@ -3797,21 +3731,19 @@ function parseInvoiceText(text) {
     type: isSettlement && seller ? guessInvCat(seller) : (guessInvCat(seller) || '住宿')
   };
 }
-// ── 拍照 / 图片 OCR（智谱视觉模型）──
-function getZhipuKey() { return localStorage.getItem('zhipu_api_key') || ''; }
+// ── 拍照 / 图片 OCR（智谱视觉模型，key 内置在服务端 Secret）──
+function getZhipuKey() { return 'builtin'; } // 兼容旧调用：key 由服务端提供，前端无需真实 key
 function importInvoiceImage(event) {
   var file = event.target.files && event.target.files[0];
   event.target.value = '';
   if (!file) return;
-  var key = getZhipuKey();
-  if (!key) { showToast('请先设置智谱 API Key（设置页）'); return; }
   _invPendingAttach = { blob: file, name: file.name, type: file.type || 'image/jpeg', size: file.size };
   renderPendingAttach();
-  ocrInvoiceImage(file, key).then(function(data) {
+  ocrInvoiceImage(file).then(function(data) {
     if (data) { fillInvForm(data); showToast('已识别，请核对后保存'); }
   });
 }
-async function ocrInvoiceImage(file, apiKey) {
+async function ocrInvoiceImage(file) {
   var base64 = await new Promise(function(resolve, reject) {
     var r = new FileReader();
     r.onload = function() { resolve(r.result); };
@@ -3820,16 +3752,16 @@ async function ocrInvoiceImage(file, apiKey) {
   });
   // 压缩图片，避免超限（最大边 1600px）
   base64 = await compressImage(base64);
-  return ocrInvoiceBase64(base64, apiKey);
+  return ocrInvoiceBase64(base64);
 }
-async function ocrInvoiceBase64(base64, apiKey) {
+async function ocrInvoiceBase64(base64) {
   window._lastOcrError = '';
   try {
-    // 走 Worker 代理（/api/ocr），服务端转发智谱，避免浏览器端限制并返回原始错误
+    // 走 Worker 代理（/api/ocr），服务端转发智谱（key 用服务端 Secret，前端不传）
     var resp = await fetch(API_BASE + '/ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64, apiKey: apiKey })
+      body: JSON.stringify({ image: base64 })
     });
     var result = await resp.json();
     if (!result || !result.ok) {
@@ -3904,14 +3836,14 @@ function extractJsonObject(text) {
   return found;
 }
 // AI 记账：直接用图片短 ID 调智谱（Worker 端取图，省掉前端取回一步，更快）
-async function ocrBookkeepingById(imgId, apiKey) {
+async function ocrBookkeepingById(imgId) {
   try {
     var ctl = new AbortController();
     var timer = setTimeout(function() { ctl.abort(); }, 40000); // 40s 超时（含智谱识别时间）
     var resp = await fetch(API_BASE + '/ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: imgId, apiKey: apiKey, mode: 'bookkeeping' }),
+      body: JSON.stringify({ id: imgId, mode: 'bookkeeping' }),
       signal: ctl.signal
     });
     clearTimeout(timer);
@@ -3943,14 +3875,14 @@ async function ocrBookkeepingById(imgId, apiKey) {
   }
 }
 
-async function ocrBookkeepingBase64(base64, apiKey) {
+async function ocrBookkeepingBase64(base64) {
   try {
     var ctl = new AbortController();
     var timer = setTimeout(function() { ctl.abort(); }, 30000); // 30s 超时，防止挂起
     var resp = await fetch(API_BASE + '/ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64, apiKey: apiKey, mode: 'bookkeeping' }),
+      body: JSON.stringify({ image: base64, mode: 'bookkeeping' }),
       signal: ctl.signal
     });
     clearTimeout(timer);
@@ -5224,15 +5156,10 @@ async function loadNextMailAttachment() {
       if (od && (od.number || parseFloat(od.amount) > 0)) { fillInvForm(od); showToast('已识别（OFD），请核对后保存'); return; }
       showToast('OFD 未识别到发票字段，请手动填写');
     } else if ((att.type || '').indexOf('image/') === 0) {
-      var key = getZhipuKey();
-      if (key) {
-        showToast('正在识别图片…');
-        var d = await ocrInvoiceImage(file, key);
-        if (d) { fillInvForm(d); showToast('已识别（图片），请核对后保存'); return; }
-        showToast('未识别到发票信息（可能不是发票，如宣传图/二维码），可手动填写或删除该附件');
-      } else {
-        showToast('图片附件已绑定，可手动填写（设置智谱 Key 可自动识别）');
-      }
+      showToast('正在识别图片…');
+      var d = await ocrInvoiceImage(file);
+      if (d) { fillInvForm(d); showToast('已识别（图片），请核对后保存'); return; }
+      showToast('未识别到发票信息（可能不是发票，如宣传图/二维码），可手动填写或删除该附件');
     } else {
       showToast('附件已绑定，请手动填写');
     }
