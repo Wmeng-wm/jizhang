@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [2026-08-18] AI 记账改智谱视觉一步识别（方案 B，已部署）
+
+> ✅ Worker（新增 mode=bookkeeping）+ 前端 v29 均已部署，GitHub 已推送（`2429bbe`）。
+
+- **背景**：AI 记账原来两步走（iOS 系统 OCR → DeepSeek 文字分类）。智谱 flash 档免费
+  （glm-4v-flash 视觉 / glm-4-flash 文字），发票 OCR 早已在用同一 Key → 改为**一步到位看图识别**
+- **新版快捷指令 `AI记账.shortcut`**：截屏 → 调整图像大小（宽 600）→ 转 JPEG（质量 0.5）
+  → Base64（无换行）→ 打开 `https://ksjizhang.top/?img=<base64>`（**主域名**，弃用旧 GitHub Pages 入口）
+- **Worker `/api/ocr`**：新增 `mode:'bookkeeping'` —— 记账专用提示词（直接看图提取
+  type/amount/category/note/accountType，分类规则与原来 DeepSeek 版一致），默认仍为发票识别
+- **前端 `handleUrlParams`**：新增 `?img=` 分支 —— 收到 base64 图片 → 调智谱视觉一步识别
+  → 预填记账弹窗（复用原 DeepSeek 的填表逻辑）；`+` 号 URL 还原容错；
+  长度/Key 校验 + 友好提示
+- **兼容**：`?ocr=` 分支（DeepSeek/本地解析）原样保留，旧版快捷指令仍可用
+- **注意**：免费档为 flash 系（4V-Plus/4.5V 收费）；需设置页配置智谱 API Key
+
 ## [2026-08-14] 发票模块大升级（全天 17 次提交，全部部署上线）
 
 > ✅ Worker + 前端均已部署到生产（ksjizhang.top），代码已同步 GitHub。

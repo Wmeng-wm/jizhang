@@ -26,7 +26,9 @@
 - **收票规则 4 条**（对齐发票盒子）：① PDF/OFD/XML 附件自动提取 ② 正文发票链接自动下载
   ③ 二维码识别 ④ **图片收据/截屏一律手动导入（不自动 OCR）**
 - **AI 记账**（核心特色）：配合 iOS 快捷指令 `AI记账.shortcut` 实现
-  "双击背面 → 截图 → OCR → DeepSeek AI 自动分类记账"（需自备 DeepSeek API Key）
+  "双击背面 → 截图 → 智谱视觉一步识别自动分类记账"（2026-08-18 起从
+  iOS OCR + DeepSeek 两步改为 **glm-4v-flash 看图一步识别**，免费档；需设置页配置智谱 API Key；
+  快捷指令传 `?img=<base64>` 到主域名，`?ocr=` 旧链路仍兼容）
 
 ## 2. 技术架构
 
@@ -234,8 +236,10 @@ office, package, parking, coffee, graduation, award, subsidy, gift`
    `currentColor` 着色，不要用 emoji
 5. **数据兼容**：记录里的分类名是字符串，改分类名会影响历史记录匹配
    （`catInfo` 会回退查找所有账户；找不到显示 pin 图标）
-6. **AI 记账依赖**：AI 功能需要用户自备 DeepSeek API Key（设置页配置），
-   快捷指令模板在 `AI记账.shortcut`
+6. **AI 记账依赖**：AI 功能需要用户自备**智谱 API Key**（设置页配置，`zhipu_api_key`；
+   2026-08-18 起用免费 glm-4v-flash 看图一步识别，不再依赖 DeepSeek），
+   快捷指令模板在 `AI记账.shortcut`（截图 → 压缩 → base64 → `?img=` 主域名；
+   `?ocr=` 旧链路仍兼容）
 7. **git-bash 坑**：Windows 版 curl 不支持 `-o /dev/null`（退出码 23），
    响应体必须写 `$LOCALAPPDATA/Temp/` 下的真实文件
 8. **注意**：`deploy.sh` 是 bash 脚本，Windows 下用 git-bash 运行
