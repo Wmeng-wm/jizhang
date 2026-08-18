@@ -32,7 +32,7 @@
                     <array/>
                 </dict>
                 <key>WFImageResizeWidth</key>
-                <string>600</string>
+                <integer>600</integer>
             </dict>
         </dict>
         <!-- 3. 转换为 JPEG（质量 0.5，进一步压缩） -->
