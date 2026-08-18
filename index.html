@@ -3003,7 +3003,7 @@ function handleUrlParams() {
   }
 
   // id=：快捷指令上传图片到服务器换短 ID 后打开（?id=xxx，绕开 URL 长度限制）
-  // 链路：截屏→压缩→base64→POST /api/imgput 拿 ID→打开 ?id=xxx→前端取回→智谱识别
+  // 链路：截屏→压缩→base64→POST /api/imgput 拿 ID→打开 ?id=xxx→前端直接带 ID 调智谱（省掉取回一步）
   if (p.get('id')) {
     (async function() {
       var imgId = String(p.get('id') || '').trim();
@@ -3014,17 +3014,8 @@ function handleUrlParams() {
         showToast('请先设置智谱 API Key（设置 → 智谱 API Key）');
         return;
       }
-      showToast('🤖 图片上传中...');
-      var resp;
-      try {
-        resp = await fetch(API_BASE + '/imgget?id=' + encodeURIComponent(imgId));
-      } catch (e) { showToast('网络错误，请重试'); return; }
-      if (!resp.ok) { showToast('图片不存在或已过期，请重新截图'); return; }
-      var got = await resp.json();
-      var b64 = got && got.b64 ? String(got.b64) : '';
-      if (b64.length < 100) { showToast('图片数据无效，请重新截图'); return; }
-      showToast('🤖 智谱识别中...（' + Math.round(b64.length / 1024) + 'KB）');
-      var r = await ocrBookkeepingBase64('data:image/jpeg;base64,' + b64, getZhipuKey());
+      showToast('🤖 智谱识别中...');
+      var r = await ocrBookkeepingById(imgId, getZhipuKey());
       if (r && !r.error) {
         var type = r.type || 'expense';
         var cat = r.category || getCategories(type)[0].name;
@@ -3912,6 +3903,46 @@ function extractJsonObject(text) {
   if (found && Array.isArray(found)) found = found[0] && typeof found[0] === 'object' ? found[0] : null;
   return found;
 }
+// AI 记账：直接用图片短 ID 调智谱（Worker 端取图，省掉前端取回一步，更快）
+async function ocrBookkeepingById(imgId, apiKey) {
+  try {
+    var ctl = new AbortController();
+    var timer = setTimeout(function() { ctl.abort(); }, 40000); // 40s 超时（含智谱识别时间）
+    var resp = await fetch(API_BASE + '/ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: imgId, apiKey: apiKey, mode: 'bookkeeping' }),
+      signal: ctl.signal
+    });
+    clearTimeout(timer);
+    var result = await resp.json();
+    if (!result || !result.ok) {
+      var errMsg = '';
+      try { var errJson = JSON.parse(result.error || '{}'); errMsg = (errJson && errJson.error && errJson.error.message) || result.error || ''; } catch (e) { errMsg = result.error || ''; }
+      errMsg = String(errMsg).slice(0, 200);
+      if (result.status === 401) return { error: '智谱 Key 无效，请检查' + (errMsg ? '：' + errMsg : '') };
+      if (result.status === 429) return { error: '识别请求太频繁，稍后再试' };
+      if (result.status === 404) return { error: '图片不存在或已过期，请重新截图' };
+      return { error: '识别失败（' + result.status + (errMsg ? ' ' + errMsg : '') + '）' };
+    }
+    var data = result.data;
+    var content = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+    var obj = extractJsonObject(String(content));
+    if (!obj || (!String(obj.amount || '').trim() && !String(obj.category || '').trim() && !String(obj.note || '').trim() && !String(obj.type || '').trim())) {
+      return { error: '未识别到交易信息（截图可能不清晰或不是支付截图）' };
+    }
+    return {
+      type: String(obj.type || '').toLowerCase().indexOf('income') >= 0 ? 'income' : 'expense',
+      amount: parseFloat(String(obj.amount || '').replace(/[^0-9.\-]/g, '')) || 0,
+      category: String(obj.category || '').trim(),
+      note: String(obj.note || '').trim(),
+      accountType: String(obj.accountType || '').trim().toLowerCase().indexOf('work') >= 0 ? 'work' : 'personal'
+    };
+  } catch (e) {
+    return { error: '识别失败：' + (e && e.name === 'AbortError' ? '请求超时（40s），请重试' : (e && e.message ? e.message : '网络错误')) };
+  }
+}
+
 async function ocrBookkeepingBase64(base64, apiKey) {
   try {
     var ctl = new AbortController();
