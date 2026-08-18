@@ -6,6 +6,7 @@
     <string>AI记账</string>
     <key>WFWorkflowActions</key>
     <array>
+        <!-- 1. 截屏 -->
         <dict>
             <key>WFWorkflowActionIdentifier</key>
             <string>is.workflow.actions.takescreenshot</string>
@@ -15,9 +16,10 @@
                 <string>A0000000-0000-0000-0000-000000000001</string>
             </dict>
         </dict>
+        <!-- 2. 调整图像大小（宽度 600，高度自动等比，压缩 URL 体积） -->
         <dict>
             <key>WFWorkflowActionIdentifier</key>
-            <string>com.apple.shortcuts.extract-text-from-image</string>
+            <string>is.workflow.actions.image.resize</string>
             <key>WFWorkflowActionParameters</key>
             <dict>
                 <key>UUID</key>
@@ -29,42 +31,100 @@
                     <key>Aggrandizements</key>
                     <array/>
                 </dict>
+                <key>WFImageResizeWidth</key>
+                <string>600</string>
             </dict>
         </dict>
+        <!-- 3. 转换为 JPEG（质量 0.5，进一步压缩） -->
         <dict>
             <key>WFWorkflowActionIdentifier</key>
-            <string>is.workflow.actions.url</string>
+            <string>is.workflow.actions.image.convert</string>
             <key>WFWorkflowActionParameters</key>
             <dict>
                 <key>UUID</key>
                 <string>A0000000-0000-0000-0000-000000000003</string>
-                <key>WFURLActionURL</key>
+                <key>WFInput</key>
+                <dict>
+                    <key>OutputUUID</key>
+                    <string>A0000000-0000-0000-0000-000000000002</string>
+                    <key>Aggrandizements</key>
+                    <array/>
+                </dict>
+                <key>WFImageFormat</key>
+                <string>JPEG</string>
+                <key>WFImageCompressionQuality</key>
+                <real>0.5</real>
+                <key>WFImagePreserveMetadata</key>
+                <false/>
+            </dict>
+        </dict>
+        <!-- 4. Base64 编码（无换行，避免 URL 里出现 %0A） -->
+        <dict>
+            <key>WFWorkflowActionIdentifier</key>
+            <string>is.workflow.actions.base64encode</string>
+            <key>WFWorkflowActionParameters</key>
+            <dict>
+                <key>UUID</key>
+                <string>A0000000-0000-0000-0000-000000000004</string>
+                <key>WFInput</key>
+                <dict>
+                    <key>OutputUUID</key>
+                    <string>A0000000-0000-0000-0000-000000000003</string>
+                    <key>Aggrandizements</key>
+                    <array/>
+                </dict>
+                <key>WFEncodeMode</key>
+                <string>Encode</string>
+                <key>WFBase64LineBreakMode</key>
+                <string>None</string>
+            </dict>
+        </dict>
+        <!-- 5. 拼接 URL：主域名 + ?img=base64 -->
+        <dict>
+            <key>WFWorkflowActionIdentifier</key>
+            <string>is.workflow.actions.text</string>
+            <key>WFWorkflowActionParameters</key>
+            <dict>
+                <key>UUID</key>
+                <string>A0000000-0000-0000-0000-000000000005</string>
+                <key>WFTextActionText</key>
                 <dict>
                     <key>Value</key>
                     <dict>
                         <key>attachmentsByRange</key>
                         <dict>
-                            <key>{40,3}</key>
+                            <key>{27,3}</key>
                             <dict>
                                 <key>OutputUUID</key>
-                                <string>A0000000-0000-0000-0000-000000000002</string>
+                                <string>A0000000-0000-0000-0000-000000000004</string>
                                 <key>Type</key>
                                 <string>ActionOutput</string>
                             </dict>
                         </dict>
                         <key>string</key>
-                        <string>https://wmeng-wm.github.io/jizhang/?ocr=OCR</string>
+                        <string>https://ksjizhang.top/?img=IMG</string>
                     </dict>
                     <key>WFSerializationType</key>
                     <string>WFTextTokenString</string>
                 </dict>
             </dict>
         </dict>
+        <!-- 6. 打开 URL -->
         <dict>
             <key>WFWorkflowActionIdentifier</key>
             <string>is.workflow.actions.openurl</string>
             <key>WFWorkflowActionParameters</key>
-            <dict/>
+            <dict>
+                <key>UUID</key>
+                <string>A0000000-0000-0000-0000-000000000006</string>
+                <key>WFInput</key>
+                <dict>
+                    <key>OutputUUID</key>
+                    <string>A0000000-0000-0000-0000-000000000005</string>
+                    <key>Aggrandizements</key>
+                    <array/>
+                </dict>
+            </dict>
         </dict>
     </array>
     <key>WFWorkflowClientVersion</key>
