@@ -3002,12 +3002,11 @@ function handleUrlParams() {
     return;
   }
 
-  // img=：快捷指令截图直传智谱视觉识别（AI 记账一步到位，替代 iOS OCR + DeepSeek）
-  // 快捷指令输出：截屏 → 压缩 → base64 → https://ksjizhang.top/?img=<base64>
-  if (p.get('img')) {
+  // id=：快捷指令上传图片到服务器换短 ID 后打开（?id=xxx，绕开 URL 长度限制）
+  // 链路：截屏→压缩→base64→POST /api/imgput 拿 ID→打开 ?id=xxx→前端取回→智谱识别
+  if (p.get('id')) {
     (async function() {
-      // base64 里的 + 会被 URL 解析成空格，还原
-      var b64 = String(p.get('img') || '').replace(/ /g, '+');
+      var imgId = String(p.get('id') || '').trim();
       if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -3015,9 +3014,16 @@ function handleUrlParams() {
         showToast('请先设置智谱 API Key（设置 → 智谱 API Key）');
         return;
       }
+      showToast('🤖 图片上传中...');
+      var resp;
+      try {
+        resp = await fetch(API_BASE + '/imgget?id=' + encodeURIComponent(imgId));
+      } catch (e) { showToast('网络错误，请重试'); return; }
+      if (!resp.ok) { showToast('图片不存在或已过期，请重新截图'); return; }
+      var got = await resp.json();
+      var b64 = got && got.b64 ? String(got.b64) : '';
       if (b64.length < 100) { showToast('图片数据无效，请重新截图'); return; }
-      if (b64.length > 6 * 1024 * 1024) { showToast('图片过大，请重试（截图压缩后再试）'); return; }
-      showToast('🤖 智谱识别中...');
+      showToast('🤖 智谱识别中...（' + Math.round(b64.length / 1024) + 'KB）');
       var r = await ocrBookkeepingBase64('data:image/jpeg;base64,' + b64, getZhipuKey());
       if (r && !r.error) {
         var type = r.type || 'expense';
@@ -3031,6 +3037,39 @@ function handleUrlParams() {
         return;
       }
       showToast(r && r.error ? r.error : '识别失败，请重试');
+    })();
+    return;
+  }
+
+  // img=：快捷指令截图直传智谱视觉识别（AI 记账一步到位，替代 iOS OCR + DeepSeek）
+  // 快捷指令输出：截屏 → 压缩 → base64 → https://ksjizhang.top/?img=<base64>
+  if (p.get('img')) {
+    (async function() {
+      // base64 里的 + 会被 URL 解析成空格，还原
+      var b64 = String(p.get('img') || '').replace(/ /g, '+');
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      if (!getZhipuKey()) {
+        showToast('请先设置智谱 API Key（设置 → 智谱 API Key）');
+        return;
+      }
+      if (b64.length < 100) { showToast('图片数据无效（仅收到 ' + b64.length + ' 字符，快捷指令需插入真实变量）'); return; }
+      if (b64.length > 6 * 1024 * 1024) { showToast('图片过大，请重试（截图压缩后再试）'); return; }
+      showToast('🤖 智谱识别中...（' + Math.round(b64.length / 1024) + 'KB）');
+      var r = await ocrBookkeepingBase64('data:image/jpeg;base64,' + b64, getZhipuKey());
+      if (r && !r.error) {
+        var type = r.type || 'expense';
+        var cat = r.category || getCategories(type)[0].name;
+        var ac = r.accountType || 'personal';
+        modalAccount = ac; openModal(type);
+        if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
+        document.getElementById('noteInput').value = r.note;
+        selectedCategory = cat; renderCategoryGrid();
+        showToast('✅ 智谱识别完成，请确认后保存');
+        return;
+      }
+      showToast((r && r.error ? r.error : '识别失败，请重试') + '（收到 ' + Math.round(b64.length / 1024) + 'KB）');
     })();
     return;
   }
