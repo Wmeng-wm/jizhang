@@ -6,3 +6,4 @@ check.py
 fix_issues.py
 sw.js
 .wrangler/
+.dsh-vision-router/
