@@ -27,8 +27,12 @@
   ③ 二维码识别 ④ **图片收据/截屏一律手动导入（不自动 OCR）**
 - **AI 记账**（核心特色）：配合 iOS 快捷指令 `AI记账.shortcut` 实现
   "双击背面 → 截图 → 智谱视觉一步识别自动分类记账"（2026-08-18 起从
-  iOS OCR + DeepSeek 两步改为 **glm-4v-flash 看图一步识别**，免费档；需设置页配置智谱 API Key；
-  快捷指令传 `?img=<base64>` 到主域名，`?ocr=` 旧链路仍兼容）
+  iOS OCR + DeepSeek 两步改为 **glm-4v-flash 看图一步识别**，免费档；
+  **Key 内置服务端 Cloudflare Secret**（`ZHIPU_API_KEY`，前端无需/无法配置，设置页已移除 Key 输入）；
+  快捷指令：截图→压缩→base64→POST `/api/imgput` 换短 ID→打开 `?id=<ID>`→前端带 ID 调
+  `/api/ocr`（Worker 端取图）；图片 KV 键 `imgtmp:<id>` **10 分钟自动过期**；
+  分类/账户前端有 `normalizeAiCategory`（别名映射）+ `inferAiAccount`（差旅→工作账户）双兜底；
+  `?img=`/`?ocr=` 旧链路仍兼容）
 
 ## 2. 技术架构
 
@@ -236,10 +240,12 @@ office, package, parking, coffee, graduation, award, subsidy, gift`
    `currentColor` 着色，不要用 emoji
 5. **数据兼容**：记录里的分类名是字符串，改分类名会影响历史记录匹配
    （`catInfo` 会回退查找所有账户；找不到显示 pin 图标）
-6. **AI 记账依赖**：AI 功能需要用户自备**智谱 API Key**（设置页配置，`zhipu_api_key`；
-   2026-08-18 起用免费 glm-4v-flash 看图一步识别，不再依赖 DeepSeek），
-   快捷指令模板在 `AI记账.shortcut`（截图 → 压缩 → base64 → `?img=` 主域名；
-   `?ocr=` 旧链路仍兼容）
+6. **AI 记账依赖**：智谱 Key 已**内置服务端**（Cloudflare Secret `ZHIPU_API_KEY`，用
+   `cd D:\项目\XHS && wrangler secret put ZHIPU_API_KEY` 更新），**不要**把 Key 写进代码/GitHub；
+   前端设置页已无 Key 输入项（`getZhipuKey()` 返回 'builtin' 占位兼容旧调用）；
+   2026-08-18 起用免费 glm-4v-flash 看图一步识别，不再依赖 DeepSeek；
+   快捷指令模板在 `AI记账.shortcut`（截图→压缩→base64→POST `/api/imgput` 换短 ID→`?id=` 主域名；
+   `?img=`/`?ocr=` 旧链路仍兼容）；图片 KV `imgtmp:<id>` 10 分钟自动过期
 7. **git-bash 坑**：Windows 版 curl 不支持 `-o /dev/null`（退出码 23），
    响应体必须写 `$LOCALAPPDATA/Temp/` 下的真实文件
 8. **注意**：`deploy.sh` 是 bash 脚本，Windows 下用 git-bash 运行

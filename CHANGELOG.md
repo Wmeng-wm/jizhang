@@ -1,20 +1,36 @@
 # CHANGELOG
 
-## [2026-08-18] AI 记账改智谱视觉一步识别（方案 B，已部署）
+## [2026-08-18] AI 记账改智谱视觉一步识别（方案 B，已部署，全天 12 次提交）
 
-> ✅ Worker（新增 mode=bookkeeping）+ 前端 v29 均已部署，GitHub 已推送（`2429bbe`）。
+> ✅ Worker + 前端均已部署，GitHub 已推送（`2429bbe` → `c4b2959`，12 提交）。
 
 - **背景**：AI 记账原来两步走（iOS 系统 OCR → DeepSeek 文字分类）。智谱 flash 档免费
-  （glm-4v-flash 视觉 / glm-4-flash 文字），发票 OCR 早已在用同一 Key → 改为**一步到位看图识别**
+  （glm-4v-flash 视觉 / glm-4-flash 文字）→ 改为**一步到位看图识别**
 - **新版快捷指令 `AI记账.shortcut`**：截屏 → 调整图像大小（宽 600）→ 转 JPEG（质量 0.5）
-  → Base64（无换行）→ 打开 `https://ksjizhang.top/?img=<base64>`（**主域名**，弃用旧 GitHub Pages 入口）
-- **Worker `/api/ocr`**：新增 `mode:'bookkeeping'` —— 记账专用提示词（直接看图提取
-  type/amount/category/note/accountType，分类规则与原来 DeepSeek 版一致），默认仍为发票识别
-- **前端 `handleUrlParams`**：新增 `?img=` 分支 —— 收到 base64 图片 → 调智谱视觉一步识别
-  → 预填记账弹窗（复用原 DeepSeek 的填表逻辑）；`+` 号 URL 还原容错；
-  长度/Key 校验 + 友好提示
-- **兼容**：`?ocr=` 分支（DeepSeek/本地解析）原样保留，旧版快捷指令仍可用
-- **注意**：免费档为 flash 系（4V-Plus/4.5V 收费）；需设置页配置智谱 API Key
+  → Base64（无换行）→ **POST 上传换短 ID** → 打开 `https://ksjizhang.top/?id=<短ID>`
+  （主域名；`?img=` 旧式 URL 传图分支保留兼容）
+- **Worker `/api/ocr`**：新增 `mode:'bookkeeping'` 记账专用提示词；默认仍为发票识别
+- **图片中转**：`/api/imgput`（POST base64 → 返回随机短 ID）+ `/api/imgget`（取回）；
+  KV 键 `imgtmp:<id>` **10 分钟自动过期**（隐私安全，不永久存储）；
+  `/api/ocr` 支持直接传 `id`（Worker 端取图，省掉前端取回一步提速）
+- **踩坑修复**：① iOS Safari URL 长度限制 ~2KB → 图片 base64 塞 URL 被截断，
+  改用短 ID 中转绕开；② 快捷指令 Base64 动作默认"每 76 字符换行"→ URL 在换行处截断，
+  需设换行=无；③ 智谱返回多 JSON 块/代码块/嵌套花括号 → `extractJsonObject` 四层解析加固；
+  ④ OCR 调用加超时（Worker 25s + 前端 30s AbortController），不再无限挂起
+- **分类精准识别**：Worker 提示词给出与前端**完全一致**的合法分类列表；
+  前端 `normalizeAiCategory` 兜底（别名映射：咖啡/外卖→餐饮、房租→住房、停车→停车费…，
+  跨账户匹配，未知归"其他"）
+- **账户精准识别**：Worker 提示词明确"酒店/网约车/高铁/飞机/停车/办公/快递/应酬/培训 →
+  work 账户"；前端 `inferAiAccount` 按分类硬兜底反推账户（不依赖模型自觉），
+  酒店/差旅自动进工作账户
+- **弹窗交互**：记账弹窗加**取消按钮**（保存/取消并排）；识别完成提示统一
+  "✅ 识别完成，请确认后保存"（去掉智谱字样）；识别中提示"🤖 AI 识别中..."
+- **智谱 Key 内置服务端**：Key 存入 **Cloudflare Secret**（`ZHIPU_API_KEY`，wrangler secret put），
+  不进入任何代码/GitHub/前端；设置页**移除 DeepSeek/智谱两个 Key 输入项**（显示"已内置 ✓"）；
+  模型固定 `glm-4v-flash`（免费档）；任何人从网页源码/抓包看不到 Key
+- **`?ocr=` 兼容**：旧分支保留，DeepSeek 已停用（callDeepSeekParse 返回 null → 自动走本地解析）
+- **使用**：双击背面 → 截图 → "🤖 AI 识别中..." → 预填记账表单（账户/分类/金额/备注）
+  → 保存或取消
 
 ## [2026-08-14] 发票模块大升级（全天 17 次提交，全部部署上线）
 
