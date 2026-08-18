@@ -3014,7 +3014,7 @@ function handleUrlParams() {
         showToast('请先设置智谱 API Key（设置 → 智谱 API Key）');
         return;
       }
-      showToast('🤖 智谱识别中...');
+      showToast('🤖 AI 识别中...');
       var r = await ocrBookkeepingById(imgId, getZhipuKey());
       if (r && !r.error) {
         var type = r.type || 'expense';
@@ -3047,7 +3047,7 @@ function handleUrlParams() {
       }
       if (b64.length < 100) { showToast('图片数据无效（仅收到 ' + b64.length + ' 字符，快捷指令需插入真实变量）'); return; }
       if (b64.length > 6 * 1024 * 1024) { showToast('图片过大，请重试（截图压缩后再试）'); return; }
-      showToast('🤖 智谱识别中...（' + Math.round(b64.length / 1024) + 'KB）');
+      showToast('🤖 AI 识别中...');
       var r = await ocrBookkeepingBase64('data:image/jpeg;base64,' + b64, getZhipuKey());
       if (r && !r.error) {
         var type = r.type || 'expense';
