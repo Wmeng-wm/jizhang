@@ -508,6 +508,49 @@ body {
 .settings-item .val { color: var(--text-secondary); font-size: 14px; }
 .settings-item.danger .left { color: var(--danger); }
 
+/* ── AI 识别中 Loading 遮罩 ── */
+.ai-loading-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(30,32,48,0.32);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  justify-content: center; align-items: center;
+}
+.ai-loading-overlay.show { display: flex; }
+.ai-loading-card {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 34px 42px; border-radius: 26px;
+  background: rgba(255,255,255,0.62);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 0.5px solid rgba(255,255,255,0.75);
+  box-shadow: 0 20px 60px rgba(79,110,247,0.28), inset 0 1px 0 rgba(255,255,255,0.85);
+  animation: aiPop 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes aiPop { 0% { transform: scale(0.82); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.ai-ring {
+  width: 74px; height: 74px; border-radius: 50%; position: relative;
+  background: conic-gradient(from 0deg, #7B93FF, #4F6EF7, #9B6BFF, #7B93FF);
+  -webkit-mask: radial-gradient(circle at center, transparent 54%, #000 55%);
+  mask: radial-gradient(circle at center, transparent 54%, #000 55%);
+  animation: aiSpin 1.1s linear infinite;
+}
+.ai-ring::after {
+  content: ''; position: absolute; inset: 18px; border-radius: 50%;
+  background: radial-gradient(circle, #EAF0FF, #DDE4FF);
+  filter: blur(6px);
+  animation: aiPulse 1.2s ease-in-out infinite;
+}
+@keyframes aiSpin { to { transform: rotate(360deg); } }
+@keyframes aiPulse { 0%,100% { transform: scale(0.72); opacity: .7; } 50% { transform: scale(1.05); opacity: 1; } }
+.ai-loading-text { font-size: 16px; font-weight: 700; color: #3A47B5; letter-spacing: 1px; }
+.ai-loading-sub { font-size: 12.5px; color: #7A84C9; margin-top: -8px; }
+.ai-dots { display: flex; gap: 6px; margin-top: -4px; }
+.ai-dots span { width: 8px; height: 8px; border-radius: 50%; background: #4F6EF7; animation: aiBounce 1s infinite; }
+.ai-dots span:nth-child(2) { animation-delay: .16s; }
+.ai-dots span:nth-child(3) { animation-delay: .32s; }
+@keyframes aiBounce { 0%,60%,100% { transform: translateY(0); opacity: .55; } 30% { transform: translateY(-7px); opacity: 1; } }
+
 /* ── Add Modal ── */
 .modal-overlay {
   display: none; position: fixed; inset: 0; background: rgba(30,32,48,0.45);
@@ -1831,6 +1874,16 @@ function showToast(msg) {
   clearTimeout(t._tid); t._tid = setTimeout(() => t.classList.remove('show'), 1800);
 }
 
+// AI 识别中动态遮罩（截图识别时显示，识别结束隐藏）
+function showAiLoading() {
+  var el = document.getElementById('aiLoadingOverlay');
+  if (el) { el.classList.add('show'); el.style.display = 'flex'; }
+}
+function hideAiLoading() {
+  var el = document.getElementById('aiLoadingOverlay');
+  if (el) { el.classList.remove('show'); el.style.display = 'none'; }
+}
+
 // ── Account filtering ──
 function acctRecords(acct) {
   return records.filter(r => r.accountType === (acct || currentAccount));
@@ -2452,6 +2505,22 @@ function selectCategory(name) {
   renderCategoryGrid();
 }
 
+// ── 分类/账户别名归一（供 normalizeAiCategory 与 inferAiAccount 共用，避免两处不一致）──
+// 统一把模型的原始分类名映射到「前端真实存在」的精准分类名；修掉旧版「打车→交通」的 bug
+// （工作账户没有"交通"只有"网约车"，旧映射会让"打车"掉进"其他"）
+var AI_ALIAS = {
+  '人情':'其他', '娱乐':'购物', '零食':'餐饮', '饮料':'餐饮', '咖啡':'餐饮', '外卖':'餐饮',
+  '麦当劳':'餐饮', '肯德基':'餐饮', '星巴克':'餐饮', '奶茶':'餐饮', '早饭':'餐饮', '午饭':'餐饮', '晚饭':'餐饮', '早餐':'餐饮', '午餐':'餐饮', '晚餐':'餐饮',
+  '打车':'网约车', '出租车':'交通', '出租':'交通', '公交':'交通', '地铁':'交通', '一卡通':'交通',
+  '动车':'高铁', '火车票':'高铁', '列车':'高铁', '机票':'飞机', '航班':'飞机',
+  '停车':'停车费', '停泊':'停车费', '酒店':'酒店', '宾馆':'酒店', '民宿':'酒店', '住宿':'酒店',
+  '办公':'办公用品', '文具':'办公用品', '快递':'快递邮寄', '顺丰':'快递邮寄',
+  '话费':'通讯', '手机充值':'通讯', '宽带':'通讯', '流量':'通讯',
+  '水费':'水电燃气', '电费':'水电燃气', '燃气':'水电燃气', '水电':'水电燃气',
+  '房租':'住房', '租金':'住房', '物业':'住房',
+  '超市':'超市', '买菜':'超市', '生鲜':'超市', '购物':'购物'
+};
+
 // 智谱返回的分类兜底：确保分类在当前账户的分类列表里（否则前端选不中）
 // 返回 null 表示原分类可用；否则返回应使用的分类名
 function normalizeAiCategory(raw, acct, type) {
@@ -2467,8 +2536,7 @@ function normalizeAiCategory(raw, acct, type) {
   }
   if (found) return found;
   // 常见别名映射
-  var alias = { '人情': '其他', '娱乐': '购物', '零食': '餐饮', '饮料': '餐饮', '咖啡': '餐饮', '外卖': '餐饮', '麦当劳': '餐饮', '肯德基': '餐饮', '星巴克': '餐饮', '打车': '交通', '停车': '停车费', '办公': '办公用品', '酒店': '酒店', '房租': '住房', '话费': '通讯', '水费': '水电燃气', '电费': '水电燃气', '燃气': '水电燃气', '快递': '快递邮寄' };
-  var mapped = alias[name];
+  var mapped = AI_ALIAS[name];
   if (mapped && cats.some(function(c) { return c.name === mapped; })) return mapped;
   return '其他'; // 兜底
 }
@@ -2480,17 +2548,180 @@ function inferAiAccount(cat, aiAcct, type) {
   var name = String(cat || '').trim();
   if (!name) return null;
   // 先做别名归一（与 normalizeAiCategory 的 alias 保持一致），再按归一后的名字判断
-  var alias = { '人情': '其他', '娱乐': '购物', '零食': '餐饮', '饮料': '餐饮', '咖啡': '餐饮', '外卖': '餐饮', '麦当劳': '餐饮', '肯德基': '餐饮', '星巴克': '餐饮', '打车': '交通', '停车': '停车费', '办公': '办公用品', '酒店': '酒店', '房租': '住房', '话费': '通讯', '水费': '水电燃气', '电费': '水电燃气', '燃气': '水电燃气', '快递': '快递邮寄' };
-  var norm = alias[name] || name;
-  // 工作账户专属/差旅分类
+  var norm = AI_ALIAS[name] || name;
+  // 工作账户专属/差旅分类（用户选择：只把明确差旅判成工作）
   var workOnly = ['飞机', '高铁', '网约车', '停车费', '办公用品', '快递邮寄', '应酬招待', '培训学习'];
   if (workOnly.indexOf(norm) >= 0) return 'work';
   // 酒店：工作账户差旅场景
   if (norm === '酒店') return 'work';
   // 个人账户专属分类
-  var personalOnly = ['住房', '水电燃气', '超市', '美容', '运动健身', '宠物', '烟酒', '信用卡'];
+  var personalOnly = ['住房', '水电燃气', '超市', '美容', '运动健身', '宠物', '烟酒', '信用卡', '保险'];
   if (personalOnly.indexOf(norm) >= 0) return 'personal';
   return null;
+}
+
+// ── AI 记账：确定性商家规则引擎 ──
+// 模型是轻量视觉模型，光看支付截图很难判断"个人还是工作 / 精准分类"。
+// 这里用商家关键词表在模型返回后【覆盖】分类/账户/备注，已知商家做到 100% 可复现。
+// account 必须是 'work'/'personal'；category 必须是对应账户里真实存在的分类名；
+// merchant 为备注里展示的规范商家名（null = 沿用模型提取的 merchant）。
+var AI_RULES = [
+  // 工作差旅（明确 → work，对应您选择的"只把明确差旅判成工作"）
+  { account:'work', category:'高铁',     keys:['12306','高铁','动车','铁路','火车票','抢票','中国铁路'], merchant:'12306', canon:true },
+  { account:'work', category:'飞机',     keys:['机票','航班','航空','登机牌','南航','国航','东航','海航','川航','山航','深航','厦航','吉祥航空','春秋航空','航旅'], merchant:'航空' },
+  { account:'work', category:'网约车',   keys:['滴滴','高德打车','t3出行','曹操出行','首汽约车','花小猪','哈啰出行','嘀嗒','阳光出行','网约车'], merchant:'滴滴出行', canon:true },
+  { account:'work', category:'酒店',     keys:['酒店','宾馆','民宿','如家','汉庭','全季','亚朵','维也纳','桔子','锦江','华住','格林豪泰','城市便捷','尚客优','7天','速8'], merchant:'住宿' },
+  { account:'work', category:'停车费',   keys:['停车费','停车','泊车','停车场','捷停车','中智停车'], merchant:'停车' },
+  { account:'work', category:'办公用品', keys:['办公用品','文具','打印机','硒鼓','墨盒','a4纸','订书机','文件夹','打印纸'], merchant:'办公用品' },
+  { account:'work', category:'快递邮寄', keys:['顺丰','圆通','中通','申通','韵达','邮政','ems','京东快递','德邦','菜鸟驿站','寄快递'], merchant:'快递' },
+  { account:'work', category:'应酬招待', keys:['宴请','招待','客户','团建','商务宴请','应酬'], merchant:'应酬' },
+  { account:'work', category:'培训学习', keys:['培训费','网课','公开课','学费','课时费'], merchant:'培训' },
+  // 个人（明确 → personal，日常消费）
+  { account:'personal', category:'餐饮',  keys:['美团','饿了么','麦当劳','肯德基','星巴克','瑞幸','蜜雪冰城','喜茶','茶百道','沪上阿姨','霸王茶姬','必胜客','汉堡王','海底捞','真功夫','沙县','兰州拉面','大润发','永辉','外卖','早餐','午餐','晚餐','食堂','便利店','全家','罗森','小吃'], merchant:null },
+  { account:'personal', category:'交通',  keys:['公交','地铁','出租车','公交卡','一卡通','共享单车','哈啰单车','美团单车','青桔单车','坐地铁','坐公交'], merchant:null },
+  { account:'personal', category:'超市',  keys:['山姆','盒马','物美','华润万家','沃尔玛','永辉超市','大润发','超市','生鲜','买菜'], merchant:null },
+  { account:'personal', category:'购物',  keys:['京东','天猫','淘宝','拼多多','唯品会','苏宁','得物','抖音电商','商城','买衣服','优衣库','zara','hm'], merchant:null },
+  { account:'personal', category:'通讯',  keys:['话费','中国移动','中国联通','中国电信','宽带','流量充值','手机充值','充值话费'], merchant:null },
+  { account:'personal', category:'水电燃气', keys:['水费','电费','燃气','水电费','国家电网','天然气'], merchant:null },
+  { account:'personal', category:'住房',  keys:['房租','租金','物业费','房东','链家','贝壳','租房'], merchant:null },
+  { account:'personal', category:'医疗',  keys:['医院','药店','挂号','门诊','药房','体检','大参林','老百姓','同仁堂','口腔','看病'], merchant:null },
+  { account:'personal', category:'烟酒',  keys:['买烟','白酒','啤酒','香烟','中华','茅台','红酒'], merchant:null },
+  { account:'personal', category:'美容',  keys:['美容','美发','理发','染发','烫发','spa','造型','美甲'], merchant:null },
+  { account:'personal', category:'运动健身', keys:['健身','游泳','瑜伽','健身房','私教','运动','羽毛球','登山'], merchant:null },
+  { account:'personal', category:'信用卡', keys:['信用卡','还款','还信用卡','账单'], merchant:null },
+  { account:'personal', category:'保险',  keys:['保险','保费','人寿','车险','健康险','买保险'], merchant:null }
+];
+// 支付方式/干扰词：备注清洗时剔除（不能把"支付宝/微信/某某银行/尾号"当成商家）
+var AI_PAY_WORDS = ['微信支付','微信','支付宝','云闪付','银联','银行卡','尾号','快捷支付','财付通','apple pay','applepay','支付成功','已支付','交易成功','成功付款','付款成功'];
+
+// 读备注里的商家名（优先取模型识别出的 merchant，其次从 note 里去掉支付词）
+function extractMerchant(r) {
+  var m = String(r.merchant || '').trim();
+  if (m && m.length < 30) return m;
+  var note = String(r.note || '').trim();
+  if (note) {
+    // 去掉支付方式词，剩下的就是候选商家
+    AI_PAY_WORDS.forEach(function(w) { note = note.replace(new RegExp(w, 'gi'), ''); });
+    note = note.replace(/\s+/g, ' ').replace(/^[\-\s,，.。:：]+|[\-\s,，.。:：]+$/g, '').trim();
+    if (note) return note;
+  }
+  return '';
+}
+
+// 组装备注：干净商家名 + 关键信息（如路线/商品），剔除支付词，控制长度
+function buildAiNote(merchant, detail, fallbackNote) {
+  var m = String(merchant || '').trim();
+  AI_PAY_WORDS.forEach(function(w) { m = m.replace(new RegExp(w, 'gi'), ''); });
+  m = m.replace(/\s+/g, ' ').replace(/^[\-\s,，.。:：]+|[\-\s,，.。:：]+$/g, '').trim();
+  if (!m) {
+    m = String(fallbackNote || '').trim();
+    AI_PAY_WORDS.forEach(function(w) { m = m.replace(new RegExp(w, 'gi'), ''); });
+    m = m.replace(/\s+/g, ' ').replace(/^[\-\s,，.。:：]+|[\-\s,，.。:：]+$/g, '').trim();
+  }
+  var d = String(detail || '').trim();
+  // 关键信息（路线/商品）只在合理长度时拼接，且不与商家名重复
+  if (d && d.length <= 24 && m && m.toLowerCase().indexOf(d.toLowerCase()) < 0) {
+    m = m + ' ' + d;
+  }
+  return m;
+}
+
+// 对模型返回结果应用规则与清洗，输出可落库的 {type, amount, category, accountType, note}
+function applyAiRules(r) {
+  var type = (String(r.type || '').toLowerCase().indexOf('income') >= 0) ? 'income' : 'expense';
+  var rawCat = String(r.category || '').trim();
+  var aiAcct = (String(r.accountType || '').toLowerCase().indexOf('work') >= 0) ? 'work' : 'personal';
+  var merchant = extractMerchant(r);
+  var detail = String(r.detail || '').trim();
+  var text = (merchant + ' ' + rawCat + ' ' + String(r.note || '')).toLowerCase();
+  // 1) 学习记忆命中优先：用户历史保存习惯 > 静态规则 > 模型判断
+  var learn = matchLearn(text);
+  var ac = aiAcct, cat = rawCat;
+  var best = null, bestLen = 0;
+  if (learn && learn.cat) {
+    ac = learn.acct; cat = learn.cat;
+  } else {
+    // 静态规则匹配：取「命中关键词最长」的那条，避免"京东"误配"京东快递"
+    for (var i = 0; i < AI_RULES.length; i++) {
+      var rule = AI_RULES[i], mlen = 0;
+      for (var j = 0; j < rule.keys.length; j++) {
+        var k = rule.keys[j].toLowerCase();
+        if (k && text.indexOf(k) >= 0 && k.length > mlen) mlen = k.length;
+      }
+      if (mlen > bestLen) { bestLen = mlen; best = rule; }
+    }
+    if (best) {
+      ac = best.account; cat = best.category;
+      if (best.canon && best.merchant) merchant = best.merchant;
+      else if (!merchant && best.merchant) merchant = best.merchant;
+    }
+  }
+  // 2) 账户兜底：差旅/工作专属分类 → 强制工作账户（与 inferAiAccount 一致）
+  ac = inferAiAccount(cat, ac, type) || ac;
+  // 3) 分类规范化：确保分类在当前账户分类列表里存在（否则前段选不中）
+  cat = normalizeAiCategory(cat, ac, type) || cat || getCategories(type)[0].name;
+  // 4) 备注组装：干净商家名 + 关键信息
+  var note = buildAiNote(merchant, detail, String(r.note || ''));
+  return { type: type, amount: parseFloat(String(r.amount || '').replace(/[^0-9.\-]/g, '')) || 0, category: cat, accountType: ac, note: note };
+}
+
+// ── 从历史记录学习：用户保存过的商家 → 分类/账户，让 AI 越用越懂你 ──
+// 学习优先于静态规则：同一个商家你多次存成某个分类/账户，下次识别就直接按你的习惯来。
+// 字典结构：{ 商家关键词: { acct:'work/personal', cat:'分类', type:'expense/income', count:次数 } }
+var AI_LEARN = {};
+var AI_LEARN_MIN = 1;                 // 最少出现次数才生效（1=记一次就学）
+var AI_LEARN_STOP = ['餐饮','交通','购物','住房','水电燃气','通讯','医疗','教育','超市','美容','运动健身','宠物','烟酒','信用卡','保险','其他','飞机','高铁','网约车','酒店','娱乐','办公用品','快递邮寄','停车费','应酬招待','培训学习','早餐','午餐','晚餐','早饭','午饭','晚饭','快车','标准间','单间','拿铁','中杯','大杯','小票','消费','支付','转账','还款','充值','缴费','订单','账单','收入','工资','报销'];
+
+// 从一条备注里提取「商家关键词」：取去掉支付词后的第一个词（如 "如家酒店 标准间" → "如家酒店"）
+function learnKey(note) {
+  var n = String(note || '').trim();
+  AI_PAY_WORDS.forEach(function(w) { n = n.replace(new RegExp(w, 'gi'), ''); });
+  n = n.replace(/[，。！？,.;:：、\s]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!n) return '';
+  var first = n.split(' ')[0].replace(/[，。！？,.;:：]+$/g, '').trim();
+  if (!first || first.length < 2) return '';
+  if (AI_LEARN_STOP.indexOf(first) >= 0) return ''; // 分类名/泛化词不作学习键，避免误配
+  return first.toLowerCase();
+}
+
+// 从全部记账记录重建学习字典：统计每个商家关键词最常见的 (账户,分类,收支) 组合
+function buildLearnMap() {
+  var tmp = {}; // key -> { sig: count }
+  (records || []).forEach(function(r) {
+    if (!r || !r.note) return;
+    var k = learnKey(r.note);
+    if (!k) return;
+    var acct = r.accountType || 'personal';
+    var cat = r.category || '';
+    var t = r.type || 'expense';
+    if (!cat) return;
+    var sig = acct + '|' + cat + '|' + t;
+    if (!tmp[k]) tmp[k] = {};
+    tmp[k][sig] = (tmp[k][sig] || 0) + 1;
+  });
+  var out = {};
+  for (var k in tmp) {
+    var best = null, bestC = 0;
+    for (var sig in tmp[k]) {
+      if (tmp[k][sig] > bestC) { bestC = tmp[k][sig]; best = sig; }
+    }
+    if (best) {
+      var p = best.split('|');
+      out[k] = { acct: p[0], cat: p[1], type: p[2], count: bestC };
+    }
+  }
+  AI_LEARN = out;
+}
+
+// 在识别文本里找命中的学习键（长得最像商家且出现过的优先）
+function matchLearn(text) {
+  if (!AI_LEARN) return null;
+  var t = String(text || '').toLowerCase();
+  var best = null, bestLen = 0;
+  for (var k in AI_LEARN) {
+    if (k && k.length >= 2 && t.indexOf(k) >= 0 && k.length > bestLen) { bestLen = k.length; best = AI_LEARN[k]; }
+  }
+  return best;
 }
 
 function closeModalOutside(e) {
@@ -2516,6 +2747,7 @@ function saveRecord() {
     accountType: modalAccount,
   });
   save();
+  buildLearnMap(); // 保存后重新学习：下次识别这个商家就按你的习惯来
   closeModal();
   renderAll();
   showToast((modalAccount === 'personal' ? '个人 · ' : '工作 · ') + (modalType === 'expense' ? '已记录支出' : '已记录收入'));
@@ -2997,21 +3229,19 @@ function handleUrlParams() {
       if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-      showToast('🤖 AI 识别中...');
+      showAiLoading();
       var r = await ocrBookkeepingById(imgId);
       if (r && !r.error) {
-        var type = r.type || 'expense';
-        var aiAcct = r.accountType || 'personal';
-        var rawCat = r.category || '';
-        var ac = inferAiAccount(rawCat, aiAcct, type) || aiAcct;
-        var cat = normalizeAiCategory(rawCat, ac, type) || rawCat || getCategories(type)[0].name;
-        modalAccount = ac; openModal(type);
-        if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
-        document.getElementById('noteInput').value = r.note;
-        selectedCategory = cat; renderCategoryGrid();
+        var ai = applyAiRules(r);
+        hideAiLoading();
+        modalAccount = ai.accountType; openModal(ai.type);
+        if (ai.amount > 0) { document.getElementById('amountInput').value = ai.amount; document.getElementById('saveBtn').disabled = false; }
+        document.getElementById('noteInput').value = ai.note;
+        selectedCategory = ai.category; renderCategoryGrid();
         showToast('✅ 识别完成，请确认后保存');
         return;
       }
+      hideAiLoading();
       showToast(r && r.error ? r.error : '识别失败，请重试');
     })();
     return;
@@ -3028,21 +3258,19 @@ function handleUrlParams() {
       }
       if (b64.length < 100) { showToast('图片数据无效（仅收到 ' + b64.length + ' 字符，快捷指令需插入真实变量）'); return; }
       if (b64.length > 6 * 1024 * 1024) { showToast('图片过大，请重试（截图压缩后再试）'); return; }
-      showToast('🤖 AI 识别中...');
+      showAiLoading();
       var r = await ocrBookkeepingBase64('data:image/jpeg;base64,' + b64);
       if (r && !r.error) {
-        var type = r.type || 'expense';
-        var aiAcct = r.accountType || 'personal';
-        var rawCat = r.category || '';
-        var ac = inferAiAccount(rawCat, aiAcct, type) || aiAcct;
-        var cat = normalizeAiCategory(rawCat, ac, type) || rawCat || getCategories(type)[0].name;
-        modalAccount = ac; openModal(type);
-        if (r.amount > 0) { document.getElementById('amountInput').value = r.amount; document.getElementById('saveBtn').disabled = false; }
-        document.getElementById('noteInput').value = r.note;
-        selectedCategory = cat; renderCategoryGrid();
+        var ai = applyAiRules(r);
+        hideAiLoading();
+        modalAccount = ai.accountType; openModal(ai.type);
+        if (ai.amount > 0) { document.getElementById('amountInput').value = ai.amount; document.getElementById('saveBtn').disabled = false; }
+        document.getElementById('noteInput').value = ai.note;
+        selectedCategory = ai.category; renderCategoryGrid();
         showToast('✅ 识别完成，请确认后保存');
         return;
       }
+      hideAiLoading();
       showToast((r && r.error ? r.error : '识别失败，请重试') + '（收到 ' + Math.round(b64.length / 1024) + 'KB）');
     })();
     return;
@@ -3093,6 +3321,7 @@ document.getElementById('dateInput').value = getLocalDateStr();
   renderAll();
   updateAiToggle();
   updatePairUI();
+  buildLearnMap(); // 先加载学习记忆，再处理快捷指令打开的识别（识别时可直接套用你的历史习惯）
   handleUrlParams();
   updateInvMailboxStatus();
 })();
@@ -3912,6 +4141,8 @@ async function ocrBookkeepingById(imgId) {
       amount: parseFloat(String(obj.amount || '').replace(/[^0-9.\-]/g, '')) || 0,
       category: String(obj.category || '').trim(),
       note: String(obj.note || '').trim(),
+      merchant: String(obj.merchant || '').trim(),
+      detail: String(obj.detail || '').trim(),
       accountType: String(obj.accountType || '').trim().toLowerCase().indexOf('work') >= 0 ? 'work' : 'personal'
     };
   } catch (e) {
@@ -3952,6 +4183,8 @@ async function ocrBookkeepingBase64(base64) {
       amount: parseFloat(String(obj.amount || '').replace(/[^0-9.\-]/g, '')) || 0,
       category: String(obj.category || '').trim(),
       note: String(obj.note || '').trim(),
+      merchant: String(obj.merchant || '').trim(),
+      detail: String(obj.detail || '').trim(),
       accountType: String(obj.accountType || '').trim().toLowerCase().indexOf('work') >= 0 ? 'work' : 'personal'
     };
   } catch (e) {
@@ -5674,5 +5907,13 @@ syncInvoicesFromCloud().then(function() {
   if (document.getElementById('page-invoice').classList.contains('active')) renderInvoicePage();
 });
 </script>
+<div class="ai-loading-overlay" id="aiLoadingOverlay">
+  <div class="ai-loading-card">
+    <div class="ai-ring"></div>
+    <div class="ai-loading-text">AI 识别中</div>
+    <div class="ai-loading-sub">正在识别截图内容…</div>
+    <div class="ai-dots"><span></span><span></span><span></span></div>
+  </div>
+</div>
 </body>
 </html>
