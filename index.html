@@ -1147,6 +1147,7 @@ body {
       <span class="month-label" id="monthLabel"></span>
       <button onclick="nextMonth()">›</button>
     </div>
+    <div id="workToolBar" style="display:none;align-items:center;gap:8px;margin:0 0 10px;"></div>
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="搜索备注、分类、金额..." oninput="onSearch()">
     </div>
@@ -1795,6 +1796,38 @@ async function syncToCloud(){
   }
 }
 
+// ── 每月自动结转：个人账户每月把上月结余（上月收入-支出，正数）计入当月收入 ──
+// 幂等：本月已存在「上月结余」收入记录就不再结转（天然防多端重复）；
+// 记录 id 按月份确定（如 2026080001），即使两台设备同时结转，云端按 id 去重也不会重复。
+function autoCarryLastMonth() {
+  try {
+    var now = new Date();
+    var curYm = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    var prev = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    var prevYm = prev.getFullYear() + '-' + String(prev.getMonth()+1).padStart(2,'0');
+    var exists = records.some(function(r){
+      return r && r.accountType === 'personal' && r.category === '上月结余' && r.type === 'income' && r.date && r.date.indexOf(curYm) === 0;
+    });
+    if (exists) return false;
+    var inc = 0, exp = 0;
+    records.forEach(function(r){
+      if (!r || r.accountType !== 'personal' || !r.date || r.date.indexOf(prevYm) !== 0) return;
+      if (r.type === 'income') inc += r.amount; else if (r.type === 'expense') exp += r.amount;
+    });
+    var bal = Math.round((inc - exp) * 100) / 100;
+    if (bal <= 0) return false; // 上月无盈余（负数/零）不结转
+    var carryId = parseInt(curYm.replace('-',''), 10) * 10000 + 1;
+    if (records.some(function(r){ return r.id === carryId; })) return false;
+    var note = parseInt(prevYm.slice(0,4),10) + '年' + parseInt(prevYm.slice(5,7),10) + '月结余';
+    records.push({ id: carryId, type: 'income', category: '上月结余', amount: bal, note: note, date: curYm + '-01', accountType: 'personal' });
+    save();
+    return true;
+  } catch (e) {
+    console.warn('上月结余结转失败', e);
+    return false;
+  }
+}
+
 // ── 同步码配对（用户主动绑定自己的多台设备）──
 var _syncCode = localStorage.getItem('jz_sync_code') || '';
 
@@ -1886,7 +1919,8 @@ function hideAiLoading() {
 
 // ── Account filtering ──
 function acctRecords(acct) {
-  return records.filter(r => r.accountType === (acct || currentAccount));
+  // 已归档记录不在常规展示/统计里（工作账户归档后从零重新记账），归档视图单独读取
+  return records.filter(r => r.accountType === (acct || currentAccount) && !r.archived);
 }
 
 function catInfo(name, type) {
@@ -1907,15 +1941,67 @@ function fmtShort(n) {
   if (n >= 100) return Math.round(n) + '';
   return (Math.round(n * 10) / 10) + '';
 }
-function monthRecordsForAccount() {
-  return acctRecords().filter(function(r) {
+// 当前展示的基础记录集：
+//   个人 = 当月记录（保留分月）
+//   工作 = 全部未归档记录（不分月，一直展示）；归档视图 = 全部已归档记录
+var workArchiveView = false;
+function baseRecords() {
+  if (currentAccount === 'work' && workArchiveView) {
+    return records.filter(r => r.accountType === 'work' && r.archived);
+  }
+  var base = acctRecords();
+  if (currentAccount === 'work') return base;
+  return base.filter(function(r) {
     var d = new Date(r.date);
     return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
   });
 }
+function workArchived() { return records.filter(r => r.accountType === 'work' && r.archived); }
+function workActive() { return records.filter(r => r.accountType === 'work' && !r.archived); }
+
+// 工作账户顶部工具条（替代月份导航）：查看归档 / 归档
+function renderWorkToolBar() {
+  var bar = document.getElementById('workToolBar');
+  var nav = document.getElementById('monthNav');
+  if (!bar || !nav) return;
+  var isWork = currentAccount === 'work';
+  nav.style.display = isWork ? 'none' : 'flex';
+  bar.style.display = isWork ? 'flex' : 'none';
+  if (!isWork) return;
+  var btns;
+  if (workArchiveView) {
+    btns = '<button onclick="exitWorkArchive()" style="border:none;background:rgba(79,110,247,0.14);color:var(--primary);font-size:13px;font-weight:600;padding:8px 14px;border-radius:12px;cursor:pointer;">返回当前记录</button>';
+  } else {
+    var archN = workArchived().length;
+    var actN = workActive().length;
+    btns =
+      (archN > 0 ? '<button onclick="viewWorkArchive()" style="border:none;background:rgba(255,255,255,0.6);color:var(--text-secondary);font-size:13px;font-weight:600;padding:8px 12px;border-radius:12px;cursor:pointer;">已归档 ' + archN + ' 笔</button>' : '') +
+      '<button onclick="archiveWorkRecords()"' + (actN === 0 ? ' disabled style="border:none;background:rgba(0,0,0,0.06);color:var(--text-secondary);font-size:13px;font-weight:600;padding:8px 14px;border-radius:12px;cursor:not-allowed;"' : ' style="border:none;background:rgba(255,159,10,0.16);color:#B45309;font-size:13px;font-weight:600;padding:8px 14px;border-radius:12px;cursor:pointer;"') + '>归档' + (actN > 0 ? '（' + actN + '笔）' : '') + '</button>';
+  }
+  bar.innerHTML = '<span style="flex:1;font-size:13px;color:var(--text-secondary);padding-left:4px;">' + (workArchiveView ? '已归档记录（只读）' : '工作账户 · 全部记录（不分月）') + '</span>' + btns;
+}
+// 归档：工作账户全部当前记录打上归档标记（数据保留、云同步保留），从零重新记账
+function archiveWorkRecords() {
+  if (currentAccount !== 'work') return;
+  var act = workActive();
+  if (act.length === 0) { showToast('暂无可归档的记录'); return; }
+  var inc = act.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+  var exp = act.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
+  if (!confirm('确定把工作账户全部 ' + act.length + ' 笔记录归档吗？\n\n收入 ' + formatMoney(inc) + ' · 支出 ' + formatMoney(exp) + '\n归档后工作账户清零重新记账；归档数据保留，可随时在「已归档」查看。')) return;
+  var stamp = getLocalDateStr();
+  act.forEach(function(r) { r.archived = true; r.archivedAt = stamp; });
+  save();
+  buildLearnMap();
+  workArchiveView = false;
+  currentFilter = 'all';
+  renderAll();
+  showToast('已归档 ' + act.length + ' 笔，重新开始记账');
+}
+function viewWorkArchive() { workArchiveView = true; currentFilter = 'all'; renderAll(); }
+function exitWorkArchive() { workArchiveView = false; currentFilter = 'all'; renderAll(); }
 function renderFilterBar() {
   var bar = document.getElementById('filterBar');
-  var recs = monthRecordsForAccount();
+  var recs = baseRecords();
   var expRecs = recs.filter(r => r.type === 'expense');
   var incRecs = recs.filter(r => r.type === 'income');
   var expSum = expRecs.reduce((s, r) => s + r.amount, 0);
@@ -1941,24 +2027,25 @@ function renderFilterBar() {
 }
 
 // ── Render Transaction Item ──
-function renderTxItem(r) {
+function renderTxItem(r, readOnly) {
   const c = catInfo(r.category, r.type);
   const cls = r.type === 'income' ? 'income' : 'expense';
   const sign = r.type === 'income' ? '+' : '-';
   const acctTag = r.accountType === 'work'
     ? '<span class="tx-acct-tag work">工作</span>'
     : '';
+  const archTag = r.archived ? '<span class="tx-acct-tag" style="background:rgba(0,0,0,0.06);color:var(--text-secondary);">已归档</span>' : '';
   return `
     <div class="tx-item" style="margin:0;cursor:pointer;" onclick="showRecordDetail(${r.id})" data-id="${r.id}">
       <div class="tx-icon" style="background:${c.color}20;color:${c.color};">${ico(c.icon)}</div>
       <div class="tx-info">
-        <div class="tx-category">${r.category}${acctTag}</div>
+        <div class="tx-category">${r.category}${acctTag}${archTag}</div>
         <div class="tx-date">${formatDate(r.date)}${r.note ? ' · ' + r.note : ''}</div>
       </div>
       <div class="tx-meta">
         <div class="tx-amount ${cls}">${sign}${formatMoney(r.amount)}</div>
       </div>
-      <button class="delete-btn" onclick="event.stopPropagation();deleteRecord(${r.id})">&times;</button>
+      ${readOnly ? '' : '<button class="delete-btn" onclick="event.stopPropagation();deleteRecord(' + r.id + ')">&times;</button>'}
     </div>
   `;
 }
@@ -1972,6 +2059,7 @@ document.getElementById('accountSwitch').addEventListener('click', function(e) {
 
 function setCurrentAccount(acct) {
   currentAccount = acct;
+  workArchiveView = false; // 切换账户退出归档视图
   document.querySelectorAll('#accountSwitch button').forEach(b => {
     b.classList.toggle('active', b.dataset.acct === acct);
   });
@@ -2007,10 +2095,12 @@ function renderHome() {
   const monthPrefix = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
 
   cardsContainer.innerHTML = ['personal', 'work'].map(acct => {
-    const acctRecords = records.filter(r => r.accountType === acct);
-    const monthRecords = acctRecords.filter(r => r.date.startsWith(monthPrefix));
-    const income = monthRecords.filter(r => r.type === 'income').reduce((s,r) => s + r.amount, 0);
-    const expense = monthRecords.filter(r => r.type === 'expense').reduce((s,r) => s + r.amount, 0);
+    const isWork = acct === 'work';
+    const allAcct = records.filter(r => r.accountType === acct && !r.archived);
+    // 个人=本月；工作=不分月，累计（归档后从零重新计）
+    const periodRecords = isWork ? allAcct : allAcct.filter(r => r.date.startsWith(monthPrefix));
+    const income = periodRecords.filter(r => r.type === 'income').reduce((s,r) => s + r.amount, 0);
+    const expense = periodRecords.filter(r => r.type === 'expense').reduce((s,r) => s + r.amount, 0);
     const balance = income - expense;
 
     const isActive = currentAccount === acct;
@@ -2026,43 +2116,46 @@ function renderHome() {
         <div class="card-label">${label}</div>
         <div class="card-balance" style="color:${balanceColor}">${formatMoney(balance)}</div>
         <div class="card-row">
-          <span class="in">收 ${formatMoney(income)}</span>
-          <span class="out">支 ${formatMoney(expense)}</span>
+          <span class="in">${isWork ? '累计收' : '收'} ${formatMoney(income)}</span>
+          <span class="out">${isWork ? '累计支' : '支'} ${formatMoney(expense)}</span>
         </div>
       </div>
     `;
   }).join('');
 
-  // 本月消费趋势卡：本月总支出 + 日均 + 最近7天柱状图
-  const monthRecords = acctRecords().filter(r => r.date.startsWith(monthPrefix));
-  const monthExpense = monthRecords.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
-  const monthIncome = monthRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+  // 消费趋势卡：个人=本月支出+日均；工作=累计支出（不分月）
+  const isWorkTrend = currentAccount === 'work';
+  const baseAll = records.filter(r => r.accountType === currentAccount && !r.archived);
+  const periodRecs = isWorkTrend ? baseAll : baseAll.filter(r => r.date.startsWith(monthPrefix));
+  const monthExpense = periodRecs.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
+  const monthIncome = periodRecs.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const dayIndex = now.getDate();
   const dailyAvg = dayIndex > 0 ? monthExpense / dayIndex : 0;
 
-  // 最近 7 天每日支出
+  // 最近 7 天每日支出（按全部未归档记录取数，跨月也正确）
   const bars = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
     const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    const dayExpense = monthRecords.filter(r => r.type === 'expense' && r.date === key).reduce((s, r) => s + r.amount, 0);
+    const dayExpense = baseAll.filter(r => r.type === 'expense' && r.date === key).reduce((s, r) => s + r.amount, 0);
     bars.push({ key, dayExpense, isToday: i === 0 });
   }
   const maxBar = Math.max(...bars.map(b => b.dayExpense), 1);
   const maxBarHuman = maxBar < 1 ? 1 : maxBar;
+  const recent7Sum = bars.reduce((s, b) => s + b.dayExpense, 0);
 
   const trendCard = document.getElementById('trendCard');
   trendCard.innerHTML = `
     <div class="trend-card">
       <div class="trend-top">
         <span class="trend-amount">${formatMoney(monthExpense)}</span>
-        <span class="trend-unit">本月支出</span>
+        <span class="trend-unit">${isWorkTrend ? '累计支出' : '本月支出'}</span>
       </div>
       <div class="trend-sub">
-        <span>日均 <b>${formatMoney(dailyAvg)}</b></span>
-        <span>收入 <b style="color:var(--success)">${formatMoney(monthIncome)}</b></span>
-        <span>${dayIndex} / ${daysInMonth} 天</span>
+        ${isWorkTrend
+          ? `<span>近7天 <b>${formatMoney(recent7Sum)}</b></span><span>收入 <b style="color:var(--success)">${formatMoney(monthIncome)}</b></span><span>共 ${baseAll.length} 笔</span>`
+          : `<span>日均 <b>${formatMoney(dailyAvg)}</b></span><span>收入 <b style="color:var(--success)">${formatMoney(monthIncome)}</b></span><span>${dayIndex} / ${daysInMonth} 天</span>`}
       </div>
       <div class="trend-chart">
         ${bars.map(b => {
@@ -2110,16 +2203,16 @@ function renderHome() {
       </div>`;
   }
 
-  // 本月支出分类排行
+  // 支出分类排行（个人=本月；工作=累计，不分月）
   const catMap = {};
-  monthRecords.filter(r => r.type === 'expense').forEach(r => { catMap[r.category] = (catMap[r.category] || 0) + r.amount; });
+  periodRecs.filter(r => r.type === 'expense').forEach(r => { catMap[r.category] = (catMap[r.category] || 0) + r.amount; });
   const catEntries = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 4);
   const maxCat = Math.max(...catEntries.map(e => e[1]), 1);
   const catCard = document.getElementById('homeCategoryCard');
   if (catEntries.length > 0) {
     catCard.innerHTML = `
       <div class="section-title">
-        <span>本月支出排行</span>
+        <span>${isWorkTrend ? '累计支出排行' : '本月支出排行'}</span>
         <span class="view-all" onclick="switchTab('stats')">统计 →</span>
       </div>
       <div class="home-rank">
@@ -2200,11 +2293,10 @@ function buildFilterSummary(filtered, f) {
 function renderHistory(filter) {
   const f = filter || currentFilter;
   updateMonthLabel();
+  renderWorkToolBar();
   const container = document.getElementById('historyList');
-  let filtered = acctRecords().filter(r => {
-    const d = new Date(r.date);
-    return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
-  });
+  const readOnly = currentAccount === 'work' && workArchiveView;
+  let filtered = baseRecords();
   if (f && f !== 'all') {
     if (f === 'expense' || f === 'income') {
       filtered = filtered.filter(r => r.type === f);
@@ -2223,7 +2315,15 @@ function renderHistory(filter) {
 
   const summaryHtml = buildFilterSummary(filtered, f);
   if (filtered.length === 0) {
-    container.innerHTML = summaryHtml + '<div class="empty-state" style="padding-top:20px;"><div class="empty-icon">' + ico('search') + '</div><p>无符合条件的记录</p></div>';
+    var emptyMsg;
+    if (readOnly) {
+      emptyMsg = '<p>暂无归档记录</p>';
+    } else if (currentAccount === 'work' && workArchived().length > 0) {
+      emptyMsg = '<p>工作账户当前无记录（已归档 ' + workArchived().length + ' 笔）</p><button onclick="viewWorkArchive()" style="border:none;background:rgba(79,110,247,0.14);color:var(--primary);font-size:14px;font-weight:600;padding:10px 18px;border-radius:14px;cursor:pointer;margin-top:8px;">查看归档记录</button>';
+    } else {
+      emptyMsg = '<p>无符合条件的记录</p>';
+    }
+    container.innerHTML = summaryHtml + '<div class="empty-state" style="padding-top:20px;"><div class="empty-icon">' + ico('search') + '</div>' + emptyMsg + '</div>';
     initSwipeItems();
     return;
   }
@@ -2235,7 +2335,7 @@ function renderHistory(filter) {
       html += '<div class="month-header">' + parseInt(p[0]) + '年' + parseInt(p[1]) + '月</div>';
       lastMonth = m;
     }
-    html += renderTxItem(r);
+    html += renderTxItem(r, readOnly);
   });
   container.innerHTML = html;
   initSwipeItems();
@@ -2253,28 +2353,40 @@ function currentStatsRange(monthStr) {
   return { start, end: monthEnd > today ? today : monthEnd, month };
 }
 
+// 统计口径：个人=所选月份；工作=全部未归档记录（累计，不分月）
+function statsRange() {
+  if (currentAccount === 'work') {
+    var act = acctRecords();
+    var dates = act.map(r => r.date).filter(Boolean).sort();
+    return { start: dates[0] || getLocalDateStr(), end: getLocalDateStr(), month: null, all: true };
+  }
+  var r = currentStatsRange(selectedStatsMonth || getLocalDateStr().slice(0, 7));
+  return { start: r.start, end: r.end, month: r.month, all: false };
+}
+
 function renderStats() {
   if (!selectedStatsMonth) selectedStatsMonth = getLocalDateStr().slice(0, 7);
   const container = document.getElementById('statsContent');
-  const range = currentStatsRange(selectedStatsMonth);
+  const range = statsRange();
   const isPersonal = currentAccount === 'personal';
   const icon = isPersonal ? ico('user') : ico('work');
   const label = isPersonal ? '个人' : '工作';
   const bannerCls = isPersonal ? 'personal' : 'work';
   const startLabel = parseInt(range.start.slice(5, 7)) + '月' + parseInt(range.start.slice(8)) + '日';
   const endLabel = parseInt(range.end.slice(5, 7)) + '月' + parseInt(range.end.slice(8)) + '日';
-  const isCurrentMonth = range.month === getLocalDateStr().slice(0, 7);
-  const bannerTitle = isCurrentMonth ? '本月统计' : parseInt(range.month.slice(5, 7)) + '月统计';
+  const isCurrentMonth = !range.all && range.month === getLocalDateStr().slice(0, 7);
+  const bannerTitle = range.all ? '累计统计' : (isCurrentMonth ? '本月统计' : parseInt(range.month.slice(5, 7)) + '月统计');
 
   container.innerHTML = `
     <div class="billing-banner ${bannerCls}">
       <span>${icon} ${label}账户 · ${bannerTitle}</span>
       <span class="billing-date">${startLabel} - ${endLabel}</span>
     </div>
+    ${range.all ? '' : `
     <div class="month-range-row">
       <span class="mr-label">统计月份</span>
       <input type="month" id="statsMonth" value="${selectedStatsMonth}" onchange="setStatsMonth(this.value)">
-    </div>
+    </div>`}
     <div id="statsResult"></div>
   `;
   generateStats();
@@ -2287,9 +2399,9 @@ function setStatsMonth(month) {
 }
 
 function generateStats() {
-  const { start, end } = currentStatsRange(selectedStatsMonth || getLocalDateStr().slice(0, 7));
+  const rg = statsRange();
   const periodRecords = records.filter(r =>
-    r.accountType === currentAccount && r.date >= start && r.date <= end
+    r.accountType === currentAccount && !r.archived && r.date >= rg.start && r.date <= rg.end
   );
   const expenses = periodRecords.filter(r => r.type === 'expense');
   const incomes = periodRecords.filter(r => r.type === 'income');
@@ -2304,7 +2416,7 @@ function generateStats() {
   if (periodRecords.length > 0) {
     html += `
       <div style="padding:0 16px 16px;">
-        <button class="quick-btn income" style="width:100%;background:var(--primary);" onclick="exportStatsResult('${start}', '${end}')">
+        <button class="quick-btn income" style="width:100%;background:var(--primary);" onclick="exportStatsResult('${rg.start}', '${rg.end}')">
           ${ico('export')} 导出${label}汇总报表
         </button>
       </div>`;
@@ -2320,7 +2432,7 @@ function generateStats() {
 }
 
 async function exportStatsResult(start, end) {
-  const periodRecords = records.filter(r => r.accountType === currentAccount && r.date >= start && r.date <= end);
+  const periodRecords = records.filter(r => r.accountType === currentAccount && !r.archived && r.date >= start && r.date <= end);
   if (periodRecords.length === 0) { showToast('没有数据可导出'); return; }
   const label = currentAccount === 'personal' ? '个人' : '工作';
   const filename = label + '账户报表_' + start + '_' + end + '.csv';
@@ -2843,7 +2955,7 @@ function showRecordDetail(id) {
   document.getElementById('detailContent').innerHTML =
     '<div class="detail-hero" style="background:linear-gradient(180deg,' + c.color + '1A,rgba(255,255,255,0.55));border-color:' + c.color + '30;">' +
     '<div class="dh-icon" style="color:' + c.color + ';">' + ico(c.icon) + '</div>' +
-    '<div class="dh-badges"><span class="dh-badge type ' + cls + '">' + typeName + '</span><span class="dh-badge acct ' + acctCls + '">' + label + '</span></div>' +
+    '<div class="dh-badges"><span class="dh-badge type ' + cls + '">' + typeName + '</span><span class="dh-badge acct ' + acctCls + '">' + label + '</span>' + (r.archived ? '<span class="dh-badge" style="background:rgba(0,0,0,0.07);color:var(--text-secondary);">已归档</span>' : '') + '</div>' +
     '<div class="dh-cat">' + r.category + '</div>' +
     '<div class="dh-amount ' + cls + '">' + sign + formatMoney(r.amount) + '</div>' +
     '<div class="dh-date">' + dateLabel + '</div>' +
@@ -2876,10 +2988,12 @@ function showRecordDetail(id) {
           '<div class="r-amount ' + (o.type === 'income' ? 'income' : 'expense') + '">' + (o.type === 'income' ? '+' : '-') + formatMoney(o.amount) + '</div></div>';
       }).join('') + '</div>'
       : '') +
-    '<div class="detail-actions">' +
-    '<button class="detail-action-btn edit" onclick="openModalForEdit(' + r.id + ')">' + ico('edit') + '编辑</button>' +
-    '<button class="detail-action-btn del" onclick="deleteRecordFromDetail(' + r.id + ')">' + ico('trash') + '删除</button>' +
-    '</div>';
+    (r.archived
+      ? '<div class="detail-actions"><div style="width:100%;text-align:center;font-size:13px;color:var(--text-secondary);padding:12px 0;">该记录已归档（只读，不参与当前统计）</div></div>'
+      : '<div class="detail-actions">' +
+        '<button class="detail-action-btn edit" onclick="openModalForEdit(' + r.id + ')">' + ico('edit') + '编辑</button>' +
+        '<button class="detail-action-btn del" onclick="deleteRecordFromDetail(' + r.id + ')">' + ico('trash') + '删除</button>' +
+        '</div>');
   document.getElementById('detailOverlay').classList.add('show');
 }
 
@@ -3318,6 +3432,7 @@ document.getElementById('dateInput').value = getLocalDateStr();
 (async function(){
   // 先拉取云端记录合并，再渲染（保证多端数据一致）
   await syncFromCloud();
+  autoCarryLastMonth(); // 个人账户：把上月结余结转为当月收入（幂等）
   renderAll();
   updateAiToggle();
   updatePairUI();
@@ -3328,7 +3443,7 @@ document.getElementById('dateInput').value = getLocalDateStr();
 // 切回前台时自动同步（多端实时性）
 document.addEventListener('visibilitychange', function(){
   if (document.visibilityState === 'visible') {
-    syncFromCloud().then(function(){ renderAll(); });
+    syncFromCloud().then(function(){ autoCarryLastMonth(); renderAll(); });
   }
 });
 // ══════════════════════════════════════════════════════════
