@@ -3921,15 +3921,18 @@ async function recognizePDFFile(file) {
   var fname = String(file && file.name || '').toLowerCase();
   if (/结账单|结算单|结帐单/.test(fname)) fullText += ' 结账单 消费合计 ';
   var fromText = parseInvoiceText(fullText);
-  // 结账单兜底：文件名含结账单/结算单但文本层识别失败时，
-  // 从文本层提取「日期 + 金额」模式（如 2026-08-12 ... 199.15）构造结算单数据
-  if (!fromText && /结账单|结算单|结帐单/.test(fname)) {
+  // 结账单/账单兜底：文件名【或内容】是结算单、常规识别失败时，
+  // 用关键词锚定金额（退化为最大两位小数金额）构造数据（华住/汉庭等酒店账单，附件名不一定带"结账单"）
+  var settleSignal = /结账单|结算单|结帐单/.test(fname) || /入住日期|离店日期|消费合计|房费|水单|结账/.test(fullText);
+  if (!fromText && settleSignal) {
     try {
       var settleDate = (fullText.match(/\d{4}[-/]\d{1,2}[-/]\d{1,2}/) || [''])[0].replace(/\//g, '-');
-      var amounts = fullText.match(/\d+\.\d{2}/g) || [];
-      // 取最大的两位小数金额（结账单合计通常最大）
-      var settleAmt = 0;
-      amounts.forEach(function(a) { var v = parseFloat(a); if (v > settleAmt) settleAmt = v; });
+      var settleAmt = extractSettleAmount(fullText);
+      if (!settleAmt) {
+        var amounts = fullText.match(/\d{1,3}(?:,\d{3})+\.\d{2}|\d+\.\d{2}/g) || [];
+        // 取最大的两位小数金额（结账单合计通常最大）
+        amounts.forEach(function(a) { var v = parseFloat(a.replace(/,/g, '')); if (v > settleAmt) settleAmt = v; });
+      }
       if (settleAmt > 0) {
         fromText = { number: '', code: '', date: normInvDate(settleDate), amount: settleAmt, tax: 0, seller: '', type: '住宿', note: '结账单（自动识别）' };
       }
@@ -3964,7 +3967,7 @@ async function importInvoicePDF(file) {
       return;
     }
     var ocrErr = window._lastOcrError || '';
-    showToast(ocrErr ? 'PDF 识别失败：' + ocrErr + '，可截图后用拍照识别' : 'PDF 无文字层，可截图后用拍照识别');
+    showToast(ocrErr ? 'PDF 识别失败：' + ocrErr + '；可截图后用拍照识别，或手动填金额保存（结账单也可作报销凭证）' : 'PDF 无文字层，可截图后用拍照识别，或手动填金额保存（结账单也可作报销凭证）');
   } catch (e) {
     console.warn('PDF 解析失败', e);
     showToast(e && e.message && e.message.indexOf('联网') >= 0 ? e.message : 'PDF 解析失败，请检查文件');
@@ -4060,6 +4063,23 @@ function inflateRaw(data) {
     return new Response(stream).arrayBuffer().then(function(b) { return new Uint8Array(b); });
   } catch (e) { return null; }
 }
+// 结账单/账单金额提取：关键词锚定（比“取最大数字”更准）。
+// 金额支持 1,234.56（千分位）/ ¥289 / 289元 / 289.00；特定关键词允许整数，泛化关键词（合计/总计/房费）要求带小数，避免抓到“3间夜”这类数字。
+function extractSettleAmount(text) {
+  var t = String(text || '');
+  var specific = ['消费合计','付款合计','应收金额','实收金额','合计金额','金额合计','消费总额','房费合计','应付金额','总金额','待付金额'];
+  var generic = ['总计','合计','房费'];
+  var numAny = '(\\d{1,3}(?:,\\d{3})+(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)';
+  var numDec = '(\\d{1,3}(?:,\\d{3})+\\.\\d{2}|\\d+\\.\\d{2})';
+  function tryKeys(keys, numRe) {
+    for (var i = 0; i < keys.length; i++) {
+      var m = t.match(new RegExp(keys[i] + '[^0-9￥¥]{0,10}(?:[￥¥]|RMB)?\\s*' + numRe + '(?:\\s*元)?'));
+      if (m) { var v = parseFloat(m[1].replace(/,/g, '')); if (v > 0) return v; }
+    }
+    return 0;
+  }
+  return tryKeys(specific, numAny) || tryKeys(generic, numDec);
+}
 // 从 PDF 文本层提取发票字段
 function parseInvoiceText(text) {
   if (!text || text.length < 10) return null;
@@ -4085,12 +4105,10 @@ function parseInvoiceText(text) {
   var seller = grab(/销售方[（(]名称[）)][：:\s]*([^\n]+)/)
     || grab(/销售方名称[：:\s]*([^\n]+)/) || '';
   // 结账单 / 结算单识别（酒店/出行报销凭证：无发票号码但有消费金额）
-  var isSettlement = /结账单|结算单|结帐单|消费合计|付款合计|入住日期|离店日期/.test(text);
+  var isSettlement = /结账单|结算单|结帐单|消费合计|付款合计|入住日期|离店日期|房费|水单/.test(text);
   if (!number && !amountRaw && isSettlement) {
-    amountRaw = grab(/消费合计\s*[：:]?\s*[¥￥]?\s*([\d,]+(?:\.\d{1,2})?)/)
-      || grab(/付款合计\s*[：:]?\s*[¥￥]?\s*([\d,]+(?:\.\d{1,2})?)/)
-      || grab(/金额合计\s*[：:]?\s*[¥￥]?\s*([\d,]+(?:\.\d{1,2})?)/)
-      || grab(/总计\s*[：:]?\s*[¥￥]?\s*([\d,]+(?:\.\d{1,2})?)/) || '';
+    var settleGrab = extractSettleAmount(text);
+    if (settleGrab > 0) amountRaw = String(settleGrab);
   }
   if (!number && !amountRaw) return null;
   var amount = parseFloat(amountRaw.replace(/,/g, ''));
