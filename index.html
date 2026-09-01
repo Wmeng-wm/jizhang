@@ -4405,6 +4405,15 @@ function closeInvModalOutside(e) {
 }
 function closeInvModal() {
   document.getElementById('invModalOverlay').classList.remove('show');
+  // 关闭即取消：清理收件箱处理上下文与待绑定附件。
+  // 否则残留的 _invMailProcessing 会在下次保存【任何】发票时触发「处理完成」分支，
+  // 把那封邮件从云端删除+标记已处理，而邮件里的发票其实根本没入库。
+  _invMailProcessing = null;
+  _invMailQueue = [];
+  _invPendingAttach = null;
+  renderPendingAttach();
+  var w = document.getElementById('invDupWarn');
+  if (w) w.classList.remove('show');
 }
 let invCatSelected = INVOICE_CATS[0].name;
 function renderInvCatChips(active) {
@@ -4474,27 +4483,35 @@ async function saveInvoice() {
   _invPendingAttach = null;
   renderPendingAttach();
   saveInvoices();
+  // 先取出收件箱处理上下文再关弹窗（closeInvModal 会清理这些状态）
+  var mailCtx = _invMailProcessing;
+  var queueLeft = _invMailQueue;
+  _invMailProcessing = null;
+  _invMailQueue = [];
   closeInvModal();
   renderInvoicePage();
   // 来自收件箱的发票：保存成功后继续处理同一邮件的下一张，全部处理完才删除邮件
-  if (_invMailProcessing) {
-    var mm = _invMailProcessing;
-    if (_invMailQueue.length > 0) {
-      // 还有下一张附件 → 不删邮件，加载下一张
+  if (mailCtx) {
+    if (queueLeft.length > 0) {
+      // 还有下一张附件 → 恢复上下文继续处理（不删邮件）
+      _invMailProcessing = mailCtx;
+      _invMailQueue = queueLeft;
       loadNextMailAttachment();
     } else {
-      // 全部处理完 → 从云收件箱删除并标记已处理
-      _invMailProcessing = null;
+      // 全部处理完 → 从云收件箱删除并标记已处理；删除失败则保留（收件箱里折叠为「已识别」）
+      var delOk = true;
       try {
-        await fetch(API_BASE + '/invmail', {
+        var delResp = await fetch(API_BASE + '/invmail', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mail: getInvMailbox(), action: 'delete', id: mm.mail.id })
+          body: JSON.stringify({ mail: getInvMailbox(), action: 'delete', id: mailCtx.mail.id })
         });
-      } catch (e) { /* 云删除失败则本地标记，避免重复处理 */ }
-      markInvMailDone(mm.mail.id);
-      _invMailList = _invMailList.filter(function(x) { return x.id !== mm.mail.id; });
+        if (!delResp.ok) delOk = false;
+      } catch (e) { delOk = false; }
+      markInvMailDone(mailCtx.mail.id);
+      if (delOk) _invMailList = _invMailList.filter(function(x) { return x.id !== mailCtx.mail.id; });
       refreshInvMailCnt();
+      renderInvMailList();
     }
   }
   showToast(invEditingId ? '发票已更新' : '发票已保存');
@@ -5273,6 +5290,31 @@ async function refreshInvMail() {
     listEl.innerHTML = '<div class="inv-mail-empty">' + ico('mail') + '<div>拉取失败<br><span style="font-size:11px">请确认 Worker 已部署且已配置邮箱路由</span></div></div>';
   }
 }
+var _invMailShowDone = false; // 「已识别」区块默认折叠
+function toggleInvMailDone() { _invMailShowDone = !_invMailShowDone; renderInvMailList(); }
+// 单封邮件的列表项（isDone = 已识别过，灰调展示；左滑仍可删除）
+function invMailItemHtml(m, isDone) {
+  var attTxt = (m.attachments || []).map(function(a) { return a.name; }).join('、') || '无附件';
+  var hasLink = m.body && /https?:\/\//i.test(m.body);
+  var tag = isDone
+    ? '<span class="inv-mail-tag done">已识别</span>'
+    : (m.attachCount > 0 ? '<span class="inv-mail-tag new">' + m.attachCount + ' 附件</span>' : '<span class="inv-mail-tag none">无附件</span>');
+  if (!isDone && hasLink && m.attachCount === 0) tag += '<span class="inv-mail-tag link">含链接</span>';
+  var dimStyle = isDone ? 'opacity:.62;' : '';
+  // 支持左滑删除（复用全局 swipe-container 机制，document 级事件委托，无需重新 init）
+  return '<div class="swipe-container" data-id="' + m.id + '" data-type="mail" style="margin:0 0 8px;border-radius:14px;background:#fff">' +
+    '<div class="swipe-content" style="border-radius:14px;background:#fff;' + dimStyle + '">' +
+      '<div class="inv-mail-item" onclick="processInvMail(\'' + m.id + '\')">' +
+        '<span class="inv-mail-icon">' + ico('mail') + '</span>' +
+        '<div class="inv-mail-main">' +
+          '<div class="inv-mail-subject">' + escHtml(m.subject || '(无主题)') + '</div>' +
+          '<div class="inv-mail-meta">' + escHtml(m.from || '') + ' · ' + fmtMailDate(m.date) + ' · ' + escHtml(attTxt) + '</div>' +
+        '</div>' + tag +
+      '</div>' +
+    '</div>' +
+    '<div class="swipe-delete" style="border-radius:0 14px 14px 0"><div class="swipe-btn del" onclick="deleteInvMail(\'' + m.id + '\')">删除</div></div>' +
+  '</div>';
+}
 function renderInvMailList() {
   var listEl = document.getElementById('invMailList');
   var done = getInvMailDone();
@@ -5281,28 +5323,20 @@ function renderInvMailList() {
     refreshInvMailCnt();
     return;
   }
-  listEl.innerHTML = _invMailList.map(function(m) {
-    var isDone = done.indexOf(m.id) >= 0;
-    var attTxt = (m.attachments || []).map(function(a) { return a.name; }).join('、') || '无附件';
-    var hasLink = m.body && /https?:\/\//i.test(m.body);
-    var tag = isDone
-      ? '<span class="inv-mail-tag done">已处理</span>'
-      : (m.attachCount > 0 ? '<span class="inv-mail-tag new">' + m.attachCount + ' 附件</span>' : '<span class="inv-mail-tag none">无附件</span>');
-    if (!isDone && hasLink && m.attachCount === 0) tag += '<span class="inv-mail-tag link">含链接</span>';
-    // 支持左滑删除（复用全局 swipe-container 机制）
-    return '<div class="swipe-container" data-id="' + m.id + '" data-type="mail" style="margin:0 0 8px;border-radius:14px;background:#fff">' +
-      '<div class="swipe-content" style="border-radius:14px;background:#fff">' +
-        '<div class="inv-mail-item" onclick="processInvMail(\'' + m.id + '\')">' +
-          '<span class="inv-mail-icon">' + ico('mail') + '</span>' +
-          '<div class="inv-mail-main">' +
-            '<div class="inv-mail-subject">' + escHtml(m.subject || '(无主题)') + '</div>' +
-            '<div class="inv-mail-meta">' + escHtml(m.from || '') + ' · ' + fmtMailDate(m.date) + ' · ' + escHtml(attTxt) + '</div>' +
-          '</div>' + tag +
-        '</div>' +
-      '</div>' +
-      '<div class="swipe-delete" style="border-radius:0 14px 14px 0"><div class="swipe-btn del" onclick="deleteInvMail(\'' + m.id + '\')">删除</div></div>' +
+  // 分组：待处理（未识别）在前完整展示；已识别过的默认折叠成一行，点击展开/收起
+  var pending = [], doneMails = [];
+  _invMailList.forEach(function(m) { (done.indexOf(m.id) >= 0 ? doneMails : pending).push(m); });
+  var html = '';
+  pending.forEach(function(m) { html += invMailItemHtml(m, false); });
+  if (doneMails.length > 0) {
+    html += '<div onclick="toggleInvMailDone()" style="display:flex;align-items:center;gap:6px;margin:10px 0 8px;padding:11px 14px;border-radius:14px;background:rgba(0,0,0,0.045);color:var(--text-secondary);font-size:13px;font-weight:600;cursor:pointer;user-select:none;-webkit-user-select:none;">' +
+      '<span style="font-size:11px;width:10px;">' + (_invMailShowDone ? '▾' : '▸') + '</span>' +
+      '<span>已识别 ' + doneMails.length + ' 封</span>' +
+      '<span style="font-weight:400;font-size:11px;margin-left:auto;">' + (_invMailShowDone ? '收起' : '展开') + '</span>' +
     '</div>';
-  }).join('');
+    if (_invMailShowDone) doneMails.forEach(function(m) { html += invMailItemHtml(m, true); });
+  }
+  listEl.innerHTML = html;
   refreshInvMailCnt();
 }
 // 左滑删除邮件（从云收件箱删除）
@@ -5363,6 +5397,14 @@ async function autoImportMails(silent) {
       if (atts.length === 0) {
         // 若 Worker 已尝试从链接提取，这里附件就有了；真没有 → 留在收件箱
         if (m.body && /https?:\/\//i.test(m.body)) continue; // 含链接 → 保留人工处理
+        // 无附件也无链接：没有任何可处理内容 → 从云端删除并标记已处理（不再永远堆在收件箱）
+        try {
+          await fetch(API_BASE + '/invmail', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mail: mail, action: 'delete', id: m.id })
+          });
+        } catch (e) { /* 删除失败则保留，下次打开会作为「已识别」折叠展示 */ }
         markInvMailDone(m.id);
         continue;
       }
@@ -5390,7 +5432,8 @@ async function autoImportMails(silent) {
         } catch (e) { unknown++; continue; }
         var rec = null;
         try { rec = await recognizeInvoiceFile(file, att.ofdText); } catch (e) { rec = null; }
-        if (rec && rec.number && parseFloat(rec.amount) > 0) {
+        // 发票号码已改为可选：金额识别出来即视为有效（只要求金额>0），避免「金额识别到却当失败」
+        if (rec && parseFloat(rec.amount) > 0) {
           invoiceAtts.push({ att: att, file: file, rec: rec });
         } else if (/行程单|行程|itinerary|trip|报销凭证/i.test(att.name || '')) {
           tripAtts.push({ att: att, file: file });
@@ -5437,6 +5480,7 @@ async function autoImportMails(silent) {
     if (imported > 0 || skipped > 0) {
       renderInvoicePage();
       refreshInvMailCnt();
+      renderInvMailList(); // 收件箱列表同步（已识别的会折叠进「已识别」区块）
     }
     if (!silent || imported > 0 || skipped > 0 || failed > 0) {
       var msg = [];
@@ -5452,8 +5496,10 @@ async function autoImportMails(silent) {
     }
   } catch (e) {
     console.warn('自动导入失败', e);
+  } finally {
+    // 关键：无论成功、失败还是提前返回都必须释放标志，否则一次网络异常后自动识别永久失效
+    _autoImportRunning = false;
   }
-  _autoImportRunning = false;
 }
 // 用识别结果直接创建发票（自动导入路径，跳过表单），返回发票对象或 null
 async function createInvoiceFromData(rec, file, att) {
