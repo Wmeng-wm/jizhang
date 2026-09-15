@@ -1287,7 +1287,7 @@ body {
     <div id="invSetCards"></div>
     <!-- 发票列表 -->
     <div class="inv-list" id="invList"></div>
-    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v31</div>
+    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v32</div>
     <!-- 底部操作栏 -->
     <div class="inv-dock">
       <button class="dock-btn mail" onclick="openInvMailbox()">
@@ -2011,13 +2011,19 @@ function workArchiveBatches() {
   });
 }
 function archiveBatchTimes() { return workArchiveBatches().length; }
-function fmtArchiveStamp(stamp) {
-  if (!stamp) return '早期归档（无日期）';
+// 中文日期：2026-08-19 → 2026年8月19日（withWeekday=true 时追加「周三」）
+function fmtCnDate(stamp, withWeekday) {
+  if (!stamp) return '';
   var p = String(stamp).split('-');
   if (p.length < 3) return String(stamp);
   var d = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
-  var wd = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()] || '';
-  return parseInt(p[0]) + '年' + parseInt(p[1]) + '月' + parseInt(p[2]) + '日 ' + wd;
+  var s = parseInt(p[0]) + '年' + parseInt(p[1]) + '月' + parseInt(p[2]) + '日';
+  if (withWeekday) s += ' ' + (['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()] || '');
+  return s;
+}
+function fmtArchiveStamp(stamp) {
+  if (!stamp) return '早期归档（无日期）';
+  return fmtCnDate(stamp, true) || String(stamp);
 }
 function archiveBatchTitle(stamp) { return stamp ? (fmtArchiveStamp(stamp) + ' 归档') : '早期归档记录'; }
 function toggleArchiveBatch(el) {
@@ -2585,8 +2591,9 @@ async function exportStatsResult(start, end) {
   const totalIncome = incomes.reduce((s,r) => s + r.amount, 0);
   const balance = totalIncome - totalExpense;
   let csv = '\ufeff';
-  csv += label + '账户财务报表\n';
+  csv += label + '账户报表（导出日期 ' + fmtCnDate(getLocalDateStr(), true) + '）\n';
   csv += '\n';
+  csv += '导出日期,,' + getLocalDateStr() + '\n';
   csv += '日期范围,,' + start + ' 至 ' + end + '\n';
   csv += '总收入,,' + totalIncome.toFixed(2) + '\n';
   csv += '总支出,,' + totalExpense.toFixed(2) + '\n';
@@ -3151,10 +3158,12 @@ function closeDetailModal(e) {
 
 // ── Export via Web Share API ──
 async function exportAccount(acct) {
+  const exportStamp = getLocalDateStr();            // 导出当天日期（标题 + 文件名）
+  const exportDay = fmtCnDate(exportStamp, true);   // 2026年8月19日 周三
   let exportRecords;
   let filename;
-  if (acct === 'all') { exportRecords = [...records]; filename = '全部账单.csv'; }
-  else { exportRecords = records.filter(r => r.accountType === acct); filename = (acct === 'personal' ? '个人账单' : '工作账单') + '.csv'; }
+  if (acct === 'all') { exportRecords = [...records]; filename = '全部账单_' + exportStamp + '.csv'; }
+  else { exportRecords = records.filter(r => r.accountType === acct); filename = (acct === 'personal' ? '个人账单' : '工作账单') + '_' + exportStamp + '.csv'; }
   if (exportRecords.length === 0) { showToast('没有数据可导出'); return; }
 
   const acctLabel = acct === 'all' ? '全部' : (acct === 'personal' ? '个人' : '工作');
@@ -3162,9 +3171,10 @@ async function exportAccount(acct) {
   const totalExpense = exportRecords.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
   const balance = totalIncome - totalExpense;
 
-  let csv = '\\ufeff';
-  csv += acctLabel + '账户财务报表\n';
+  let csv = '\ufeff';
+  csv += acctLabel + '账户财务报表（导出日期 ' + exportDay + '）\n';
   csv += '\n';
+  csv += '导出日期,,' + exportStamp + '\n';
   csv += '总计收入,,' + totalIncome.toFixed(2) + '\n';
   csv += '总计支出,,' + totalExpense.toFixed(2) + '\n';
   csv += '结余,,' + balance.toFixed(2) + '\n';
@@ -5305,7 +5315,7 @@ function exportReimbursementCSV() {
   const total = sel.reduce((s, i) => s + i.amount, 0);
   const taxTotal = sel.reduce((s, i) => s + (i.tax || 0), 0);
   let csv = '\ufeff';
-  csv += '报销单\n';
+  csv += '报销单（导出日期 ' + fmtCnDate(getLocalDateStr(), true) + '）\n';
   csv += '生成日期,,' + getLocalDateStr() + '\n';
   csv += '发票张数,,' + sel.length + '\n';
   csv += '合计金额,,' + total.toFixed(2) + '\n';
