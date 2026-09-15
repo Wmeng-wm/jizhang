@@ -1287,7 +1287,7 @@ body {
     <div id="invSetCards"></div>
     <!-- 发票列表 -->
     <div class="inv-list" id="invList"></div>
-    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v30</div>
+    <div style="text-align:center;padding:16px 0 4px;color:var(--text-light);font-size:11px" id="invVersionTag">v31</div>
     <!-- 底部操作栏 -->
     <div class="inv-dock">
       <button class="dock-btn mail" onclick="openInvMailbox()">
@@ -2545,6 +2545,35 @@ function generateStats() {
   }
 }
 
+// ── 导出：分享或下载（统一入口）──
+// 注意：Web Share 的 payload 里【只能放 files】。
+// iOS 上 `{files:[file], title:文件名}` 会让 File 分享失败，而且系统会把 title
+// 当成一条单独文本存下来（存成 .txt，内容就是「工作账单.csv」）——
+// 于是导出会莫名多出第二个文件。只传 files 即不会再出现这个 txt。
+// 返回值：'shared' / 'cancelled' / 'downloaded'
+async function shareOrDownloadFile(blob, filename) {
+  var file = null;
+  try { file = new File([blob], filename, { type: blob.type || 'application/octet-stream' }); } catch (e) {}
+  if (file && navigator.share && navigator.canShare) {
+    try {
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] }); // 只传文件，不带 title/text/url
+        showToast('分享成功');
+        return 'shared';
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return 'cancelled'; // 用户取消，不再重复下载
+    }
+  }
+  // 兜底：直接下载（不支持分享面板 / 分享失败时）
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 4000); // 延迟释放，避免 Safari 下载被打断
+  showToast('已下载 ' + filename);
+  return 'downloaded';
+}
+
 async function exportStatsResult(start, end) {
   const periodRecords = records.filter(r => r.accountType === currentAccount && !r.archived && r.date >= start && r.date <= end);
   if (periodRecords.length === 0) { showToast('没有数据可导出'); return; }
@@ -2578,15 +2607,7 @@ async function exportStatsResult(start, end) {
   csv += '\n';
   csv += '合计,收入:' + totalIncome.toFixed(2) + ',支出:' + totalExpense.toFixed(2) + ',结余:' + balance.toFixed(2) + '\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: 'text/csv' });
-    const data = { files: [file], title: filename };
-    if (navigator.canShare(data)) { try { await navigator.share(data); showToast('分享成功'); return; } catch (e) { if (e.name === 'AbortError') return; } }
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-  showToast('已下载' + filename);
+  await shareOrDownloadFile(blob, filename);
 }
 function buildStatsBody(totalExpense, totalIncome, count, expenses, catType) {
   let html = `
@@ -3175,15 +3196,7 @@ async function exportAccount(acct) {
   csv += '合计,收入:' + totalIncome.toFixed(2) + ',支出:' + totalExpense.toFixed(2) + ',结余:' + balance.toFixed(2) + '\n';
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: 'text/csv' });
-    const data = { files: [file], title: filename };
-    if (navigator.canShare(data)) { try { await navigator.share(data); showToast('分享成功'); return; } catch (e) { if (e.name === 'AbortError') return; } }
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-  showToast('已下载' + filename);
+  await shareOrDownloadFile(blob, filename);
 }
 // ── Clear data ──
 function clearAccountData() {
@@ -3339,13 +3352,7 @@ function exportBackup() {
   var d = { version: 1, records: records, exportDate: new Date().toISOString() };
   var b = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
   var fn = '记账备份_' + getLocalDateStr() + '.json';
-  if (navigator.share && navigator.canShare) {
-    var f = new File([b], fn, { type: 'application/json' });
-    var sd = { files: [f], title: fn };
-    if (navigator.canShare(sd)) { try { navigator.share(sd); return; } catch(e) { if (e.name === 'AbortError') return; } }
-  }
-  var u = URL.createObjectURL(b); var a = document.createElement('a'); a.href = u; a.download = fn;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u);
+  shareOrDownloadFile(b, fn);
 }
 
 function importBackup(ev) {
@@ -5311,14 +5318,7 @@ function exportReimbursementCSV() {
   csv += '\n合计,,' + sel.length + '张,,,,,' + total.toFixed(2) + ',' + taxTotal.toFixed(2) + '\n';
   const filename = '报销单_' + getLocalDateStr() + '.csv';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: 'text/csv' });
-    const data = { files: [file], title: filename };
-    if (navigator.canShare(data)) { try { navigator.share(data); return; } catch (e) { if (e.name === 'AbortError') return; } }
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  shareOrDownloadFile(blob, filename);
 }
 function copyReimbursement() {
   const sel = getRsSel();

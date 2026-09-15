@@ -103,6 +103,20 @@ curl -s -o "$LOCALAPPDATA/Temp/cf_resp.txt" -w "%{http_code}" -X PUT \
 
 ## 4. 最近改动记录
 
+### 2026-08-19：修复导出账单多出一个 txt 文件（已部署，v31）
+
+- **现象**：导出账单会得到两个文件——`.csv`（数据）+ 一个 `.txt`，txt 内容就是「工作账单.csv」文件名
+- **根因**：导出函数把 Web Share payload 写成 `{ files:[file], title:文件名 }`；iOS 上 payload 混了
+  `files` + metadata 会让 File 分享失败（WebKit bug 316518），并把 `title` 当独立文本存成 .txt；
+  同时 share 抛错后代码又走 `<a download>` 兜底 → 于是出现两个文件
+- **修复**：新增统一入口 **`shareOrDownloadFile(blob, filename)`**（分享 payload **只传 `files`**，
+  不带 title/text/url；分享成功/取消不重复下载；不支持分享或分享失败才 `<a download>` 兜底），
+  4 处导出（导出个人/工作/全部账单 `exportAccount`、统计页 `exportStatsResult`、
+  导出备份 `exportBackup`、报销单 CSV）全部改用它；删除全部 `title: 文件名` payload
+- **顺带修复**：`exportBackup`/报销单导出原来漏 `await`，`try/catch` 抓不到 Promise 拒绝（分享失败静默无反应）；
+  兜底 `URL.revokeObjectURL` 延迟 4s，避免 Safari 下载被打断；版本标记 v30 → v31
+- **注意（给后续修改者）**：`navigator.share()` 分享文件时**永远只传 `files`**，不要加 title/text/url
+
 ### 2026-08-19：工作账户归档按批次分开展示（已部署，v30）
 
 - **需求**：工作账户「已归档」原来把所有历次归档合并成一堆，不方便；现改为**每次归档单独成组**

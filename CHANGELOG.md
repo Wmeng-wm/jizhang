@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [2026-08-19] 修复导出账单多出一个 txt 文件（已部署，v31）
+
+> ✅ 前端已部署到 kv `v4_index`。
+
+- **现象**：每次导出账单得到两个文件 —— 一个 `.csv`（数据正确）+ 一个 `.txt`，txt 内容就是「工作账单.csv」这个文件名
+- **根因**：4 个导出函数都把 Web Share payload 写成 `{ files: [file], title: 文件名 }`。
+  iOS 上 `navigator.share()` 的 payload 同时带 `files` 和 metadata（title/text/url）会让 **File 分享失败**
+  （参见 WebKit bug 316518：payload 混合时 File 分享在部分 iOS 设备上失败），
+  而 iOS 会把 `title` 当成一条**独立文本**存下来 → 存成 .txt，内容＝文件名；
+  同时我们的代码在 share 抛错后走 `<a download>` 兜底 → 得到 .csv。两个文件就是这么来的
+- **修复**：新增统一入口 `shareOrDownloadFile(blob, filename)`，**分享 payload 只传 `files`**（不带 title/text/url），
+  分享成功/用户取消都不再重复下载，只有不支持分享面板或分享真失败时才走 `<a download>` 兜底；
+  4 处导出（导出个人/工作/全部账单、统计页导出 CSV、导出备份 JSON、报销单 CSV）全部改为调用它
+- **顺带修掉的老 bug**：`exportBackup()` 和报销单导出原来 `navigator.share()` 没 `await`，
+  `try/catch` 抓不到 Promise 拒绝 → 分享失败时既不下载也没提示（静默无反应），现已修正
+- **其他**：下载兜底里 `URL.revokeObjectURL` 改为延迟 4s 释放，避免 Safari 下载被中断；发票页版本标记 v30 → v31
+
 ## [2026-08-19] 工作账户归档按批次分开展示（已部署，v30）
 
 > ✅ 前端已部署到 kv `v4_index`（`eddae73`），GitHub 已推送。
