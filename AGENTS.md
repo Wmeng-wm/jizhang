@@ -103,6 +103,18 @@ curl -s -o "$LOCALAPPDATA/Temp/cf_resp.txt" -w "%{http_code}" -X PUT \
 
 ## 4. 最近改动记录
 
+### 2026-08-19：工作账户归档按批次分开展示（已部署，v30）
+
+- **需求**：工作账户「已归档」原来把所有历次归档合并成一堆，不方便；现改为**每次归档单独成组**
+- **归档视图**（`workArchiveView === true`）：按 `archivedAt`（归档当天日期）分组，
+  标题「2026年8月14日 周五 归档」+ 副标题「第 N 次 · X 笔 · 支出 ¥A · 收入 ¥B」，
+  批次按归档时间倒序（最新在上），点标题可折叠/展开；无 `archivedAt` 的旧数据归入「早期归档记录」
+- **函数**：`workArchiveBatches()` / `archiveBatchTimes()` / `fmtArchiveStamp()` /
+  `archiveBatchTitle()` / `toggleArchiveBatch()` / `renderWorkArchiveList()`（渲染在 `renderHistory` 内分流）
+- **其他**：工具条按钮多次归档显示「已归档 N 次」；归档视图标签「已归档 N 次 · M 笔（只读）」；
+  记录详情弹窗加「归档时间」；新增 `archive` 线条图标；发票页版本标记 v29 → v30
+- 详见 `CHANGELOG.md`
+
 ### 2026-08-16：收件箱对齐发票盒子规则（已部署）
 
 - **收票规则 4 条**（收件箱弹窗内展示说明）：① PDF/OFD 附件自动提取 ② 无附件正文含发票链接自动下载 ③ 二维码/收据/截屏识别 ④ 图片手动导入
